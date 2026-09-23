@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tool caches
+.ruff_cache/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
