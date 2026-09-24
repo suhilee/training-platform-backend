@@ -25,3 +25,6 @@ htmlcov/
 *.swp
 *~
 .DS_Store
+
+# Local downloaded installers
+vscode.deb
