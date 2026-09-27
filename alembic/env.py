@@ -7,6 +7,7 @@ from logging.config import fileConfig
 from alembic import context
 
 from app.models.age_category import AgeCategory
+from app.models.user import User
 
 from app.models.base import Base
 

@@ -9,6 +9,7 @@ dependencies = [
   "sqlalchemy",
   "alembic",
   "psycopg[binary]",
+  "pwdlib[argon2]",
   "pydantic-settings",
 ]
 
