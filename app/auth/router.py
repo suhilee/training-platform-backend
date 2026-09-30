@@ -74,7 +74,8 @@ def register(
 
     return RegisterResponse(
         id=user.id,
-        name=user.name,
+        first_name=user.first_name,
+        last_name=user.last_name,
         email=user.email,
         phone_number=user.phone_number,
         date_of_birth=user.date_of_birth,

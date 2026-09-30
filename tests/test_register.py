@@ -16,7 +16,8 @@ def test_register_creates_participant(monkeypatch) -> None:
 
     fake_user = SimpleNamespace(
         id=user_id,
-        name="Souhil",
+        first_name="Souhil",
+        last_name="Bensaid",
         email="souhil@example.com",
         phone_number="0550123456",
         date_of_birth=date(2000, 1, 1),
@@ -45,7 +46,8 @@ def test_register_creates_participant(monkeypatch) -> None:
     response = client.post(
         "/auth/register",
         json={
-            "name": "Souhil",
+            "first_name": "Souhil",
+            "last_name": "Bensaid",
             "email": "souhil@example.com",
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
@@ -80,7 +82,8 @@ def test_register_fails_if_email_already_registered(monkeypatch) -> None:
     response = client.post(
         "/auth/register",
         json={
-            "name": "Souhil",
+            "first_name": "Souhil",
+            "last_name": "Bensaid",
             "email": "souhil@example.com",
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
@@ -109,7 +112,8 @@ def test_register_fails_if_age_not_eligible(monkeypatch) -> None:
     response = client.post(
         "/auth/register",
         json={
-            "name": "Souhil",
+            "first_name": "Souhil",
+            "last_name": "Bensaid",
             "email": "souhil@example.com",
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
@@ -152,7 +156,8 @@ def test_register_converts_duplicate_email_insert_to_conflict(monkeypatch) -> No
     response = client.post(
         "/auth/register",
         json={
-            "name": "Souhil",
+            "first_name": "Souhil",
+            "last_name": "Bensaid",
             "email": "souhil@example.com",
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",

@@ -16,7 +16,8 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 def create_participant(db: Session, registration: RegisterRequest, age_category: AgeCategory) -> User:
     user = User(
-    name=registration.name,
+    first_name=registration.first_name,
+    last_name=registration.last_name,
     email=registration.email,
     phone_number=registration.phone_number,
     date_of_birth=registration.date_of_birth,

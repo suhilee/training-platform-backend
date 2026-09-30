@@ -22,7 +22,8 @@ class User(Base):
         primary_key=True,
         default=uuid4,
     )
-    name: Mapped[str] = mapped_column(String(255))
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     phone_number: Mapped[str] = mapped_column(String(30))
     date_of_birth: Mapped[date] = mapped_column(Date)
