@@ -35,3 +35,14 @@ class RegisterResponse(BaseModel):
     age_category_id: int
     wilaya: str
     role: UserRole
+
+class CurrentUserResponse(BaseModel):
+    id: UUID
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone_number: str
+    date_of_birth: date
+    age_category_id: int
+    wilaya: str
+    role: UserRole

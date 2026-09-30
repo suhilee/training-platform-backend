@@ -1,3 +1,7 @@
+from datetime import date
+
+from app.models.user import UserRole
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -35,7 +39,14 @@ def test_auth_me_returns_current_user() -> None:
     def override_get_current_user():
         return SimpleNamespace(
             id=user_id,
+            first_name="Souhil",
+            last_name="Bensaid",
             email="participant@example.com",
+            phone_number="+213555123456",
+            date_of_birth=date(2000, 1, 15),
+            age_category_id=4,
+            wilaya="Alger",
+            role=UserRole.PARTICIPANT,
         )
 
     app.dependency_overrides[get_current_user] = override_get_current_user
@@ -49,5 +60,12 @@ def test_auth_me_returns_current_user() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "id": str(user_id),
+        "first_name": "Souhil",
+        "last_name": "Bensaid",
         "email": "participant@example.com",
-    }
+        "phone_number": "+213555123456",
+        "date_of_birth": "2000-01-15",
+        "age_category_id": 4,
+        "wilaya": "Alger",
+        "role": "PARTICIPANT",
+        }

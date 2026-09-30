@@ -9,11 +9,15 @@ from app.auth.schemas import (
     RegisterRequest,
     RegisterResponse,
     TokenResponse,
+    CurrentUserResponse,
 )
+
 from app.auth.service import create_participant, get_user_by_email
 from app.auth.tokens import create_access_token
 from app.db import get_db
 
+from app.auth.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -35,6 +39,23 @@ def login(
         )
 
     return TokenResponse(access_token=create_access_token(user.id))
+
+@router.get("/me", response_model=CurrentUserResponse)
+def read_current_user(
+    current_user: User = Depends(get_current_user),
+) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=current_user.id,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        email=current_user.email,
+        phone_number=current_user.phone_number,
+        date_of_birth=current_user.date_of_birth,
+        age_category_id=current_user.age_category_id,
+        wilaya=current_user.wilaya,
+        role=current_user.role,
+    )
+
 
 @router.post(
     "/register",
