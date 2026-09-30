@@ -40,5 +40,3 @@ class User(Base):
         unique=True,
         nullable=True,
     )
-
-    
