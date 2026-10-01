@@ -50,4 +50,7 @@ class CurrentUserResponse(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    wilaya: str = Field(min_length=1, max_length=100)
+    first_name: str | None = Field(default=None, min_length=1, max_length=100)
+    last_name: str | None = Field(default=None, min_length=1, max_length=100)
+    phone_number: str | None = Field(default=None, min_length=1, max_length=30)
+    wilaya: str | None = Field(default=None, min_length=1, max_length=100)

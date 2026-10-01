@@ -113,7 +113,9 @@ def update_current_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CurrentUserResponse:
-    current_user.wilaya = profile_update.wilaya
+    for field, value in profile_update.model_dump(exclude_unset=True).items():
+        setattr(current_user, field, value)
+
     db.commit()
     db.refresh(current_user)
 

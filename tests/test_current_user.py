@@ -71,7 +71,7 @@ def test_auth_me_returns_current_user() -> None:
         }
 
 
-def test_auth_me_updates_wilaya() -> None:
+def test_auth_me_updates() -> None:
     user_id = uuid4()
 
     fake_user = SimpleNamespace(
@@ -107,14 +107,21 @@ def test_auth_me_updates_wilaya() -> None:
 
         response = client.patch(
             "/auth/me",
-            json={"wilaya": "Oran"},
+            json={
+                "first_name": "Updated",
+                "phone_number": "0660000000",
+            },
         )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json()["wilaya"] == "Oran"
-    assert fake_user.wilaya == "Oran"
+    assert response.json()["first_name"] == "Updated"
+    assert response.json()["phone_number"] == "0660000000"
+    assert fake_user.first_name == "Updated"
+    assert fake_user.phone_number == "0660000000"
+    assert fake_user.wilaya == "Algiers"
+    assert fake_user.last_name == "Participant"
 
 def test_auth_me_rejects_extra_profile_fields() -> None:
     fake_user = SimpleNamespace(
