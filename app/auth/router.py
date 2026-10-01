@@ -10,6 +10,7 @@ from app.auth.schemas import (
     RegisterResponse,
     TokenResponse,
     CurrentUserResponse,
+    ProfileUpdateRequest,
 )
 
 from app.auth.service import create_participant, get_user_by_email
@@ -103,4 +104,27 @@ def register(
         age_category_id=user.age_category_id,
         wilaya=user.wilaya,
         role=user.role,
+    )
+
+
+@router.patch("/me", response_model=CurrentUserResponse)
+def update_current_user(
+    profile_update: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CurrentUserResponse:
+    current_user.wilaya = profile_update.wilaya
+    db.commit()
+    db.refresh(current_user)
+
+    return CurrentUserResponse(
+        id=current_user.id,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        email=current_user.email,
+        phone_number=current_user.phone_number,
+        date_of_birth=current_user.date_of_birth,
+        age_category_id=current_user.age_category_id,
+        wilaya=current_user.wilaya,
+        role=current_user.role,
     )

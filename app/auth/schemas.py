@@ -46,3 +46,8 @@ class CurrentUserResponse(BaseModel):
     age_category_id: int
     wilaya: str
     role: UserRole
+
+class ProfileUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    wilaya: str = Field(min_length=1, max_length=100)
