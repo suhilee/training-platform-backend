@@ -11,6 +11,8 @@ from uuid import uuid4
 
 from app.auth.dependencies import get_current_user
 
+from app.auth.password import hash_password, verify_password
+
 def test_auth_me_rejects_missing_token() -> None:
     client = TestClient(app)
     response = client.get("/auth/me")
@@ -325,3 +327,107 @@ def test_auth_me_rejects_email_conflict() -> None:
     assert response.status_code == 409
     assert response.json() == {"detail": "Email is already registered"}
     assert fake_user.email == "participant@example.com"
+
+def test_auth_me_changes_password() -> None:
+    user_id = uuid4()
+
+    fake_user = SimpleNamespace(
+        id=user_id,
+        first_name="Test",
+        last_name="Participant",
+        email="participant@example.com",
+        phone_number="0550000000",
+        date_of_birth=date(2000, 1, 1),
+        age_category_id=4,
+        wilaya="Algiers",
+        role="PARTICIPANT",
+        password_hash=hash_password("old_password"),
+    )
+
+    class FakeDb:
+        def __init__(self) -> None:
+            self.committed = False
+
+        def commit(self) -> None:
+            self.committed = True
+
+    fake_db = FakeDb()
+
+    def override_get_current_user() -> SimpleNamespace:
+        return fake_user
+
+    def override_get_db() -> FakeDb:
+        return fake_db
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        client = TestClient(app)
+
+        response = client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "old_password",
+                "new_password": "new_password",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert fake_db.committed is True
+    assert verify_password("new_password", fake_user.password_hash)
+    assert not verify_password("old_password", fake_user.password_hash)
+
+def test_auth_me_rejects_incorrect_current_password() -> None:
+    user_id = uuid4()
+
+    fake_user = SimpleNamespace(
+        id=user_id,
+        first_name="Test",
+        last_name="Participant",
+        email="participant@example.com",
+        phone_number="0550000000",
+        date_of_birth=date(2000, 1, 1),
+        age_category_id=4,
+        wilaya="Algiers",
+        role="PARTICIPANT",
+        password_hash=hash_password("old_password"),
+    )
+
+    class FakeDb:
+        def __init__(self) -> None:
+            self.committed = False
+
+        def commit(self) -> None:
+            self.committed = True
+
+    fake_db = FakeDb()
+
+    def override_get_current_user() -> SimpleNamespace:
+        return fake_user
+
+    def override_get_db() -> FakeDb:
+        return fake_db
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        client = TestClient(app)
+
+        response = client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "incorrect_password",
+                "new_password": "new_password",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 401
+    assert fake_db.committed is False
+    assert verify_password("old_password", fake_user.password_hash)
+    assert not verify_password("new_password", fake_user.password_hash)
