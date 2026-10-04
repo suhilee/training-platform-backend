@@ -85,10 +85,16 @@ def test_auth_me_updates() -> None:
         wilaya="Algiers",
         role="PARTICIPANT",
     )
+    class FakeResult:
+        def scalar_one_or_none(self) -> None:
+            return None
 
     class FakeDb:
         def commit(self) -> None:
             pass
+
+        def execute(self, statement: object) -> FakeResult:
+            return FakeResult()
 
         def refresh(self, instance: object) -> None:
             pass
@@ -109,6 +115,7 @@ def test_auth_me_updates() -> None:
             json={
                 "first_name": "Updated",
                 "phone_number": "0660000000",
+                "email": "updated@example.com",
             },
         )
     finally:
@@ -117,6 +124,8 @@ def test_auth_me_updates() -> None:
     assert response.status_code == 200
     assert response.json()["first_name"] == "Updated"
     assert response.json()["phone_number"] == "0660000000"
+    assert response.json()["email"] == "updated@example.com"
+    assert fake_user.email == "updated@example.com"
     assert fake_user.first_name == "Updated"
     assert fake_user.phone_number == "0660000000"
     assert fake_user.wilaya == "Algiers"
@@ -263,3 +272,56 @@ def test_auth_me_rejects_ineligible_date_of_birth() -> None:
     assert response.json() == {"detail": "Age is not eligible for registration"}
     assert fake_user.date_of_birth == date(2000, 1, 1)
     assert fake_user.age_category_id == 4
+
+
+def test_auth_me_rejects_email_conflict() -> None:
+    user_id = uuid4()
+
+    fake_user = SimpleNamespace(
+        id=user_id,
+        first_name="Test",
+        last_name="Participant",
+        email="participant@example.com",
+        phone_number="0550000000",
+        date_of_birth=date(2000, 1, 1),
+        age_category_id=4,
+        wilaya="Algiers",
+        role="PARTICIPANT",
+    )
+
+    class FakeResult:
+        def scalar_one_or_none(self) -> SimpleNamespace:
+            return SimpleNamespace(id=uuid4())
+
+    class FakeDb:
+        def execute(self, statement: object) -> FakeResult:
+            return FakeResult()
+
+        def commit(self) -> None:
+            pass
+
+        def refresh(self, instance: object) -> None:
+            pass
+
+    def override_get_current_user() -> SimpleNamespace:
+        return fake_user
+
+    def override_get_db() -> FakeDb:
+        return FakeDb()
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        client = TestClient(app)
+
+        response = client.patch(
+            "/auth/me",
+            json={"email": "already-registered@example.com"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Email is already registered"}
+    assert fake_user.email == "participant@example.com"

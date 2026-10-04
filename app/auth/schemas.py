@@ -52,6 +52,7 @@ class ProfileUpdateRequest(BaseModel):
 
     first_name: str | None = Field(default=None, min_length=1, max_length=100)
     last_name: str | None = Field(default=None, min_length=1, max_length=100)
+    email: EmailStr | None = Field(default=None)
     phone_number: str | None = Field(default=None, min_length=1, max_length=30)
     wilaya: str | None = Field(default=None, min_length=1, max_length=100)
-    date_of_birth: date | None = None
+    date_of_birth: date | None = Field(default=None)

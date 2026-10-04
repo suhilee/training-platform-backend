@@ -113,6 +113,15 @@ def update_current_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CurrentUserResponse:
+    if profile_update.email is not None:
+        existing_user = get_user_by_email(db, profile_update.email)
+
+        if existing_user is not None and existing_user.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email is already registered",
+            )
+
     if profile_update.date_of_birth is not None:
         age_category = get_age_category_for_date_of_birth(
             db,
