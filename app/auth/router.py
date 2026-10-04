@@ -113,7 +113,25 @@ def update_current_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CurrentUserResponse:
-    for field, value in profile_update.model_dump(exclude_unset=True).items():
+    if profile_update.date_of_birth is not None:
+        age_category = get_age_category_for_date_of_birth(
+            db,
+            profile_update.date_of_birth,
+        )
+
+        if age_category is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Age is not eligible for registration",
+            )
+
+        current_user.date_of_birth = profile_update.date_of_birth
+        current_user.age_category_id = age_category.id
+
+    for field, value in profile_update.model_dump(
+        exclude_unset=True,
+        exclude={"date_of_birth"},
+    ).items():
         setattr(current_user, field, value)
 
     db.commit()

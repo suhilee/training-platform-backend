@@ -104,7 +104,6 @@ def test_auth_me_updates() -> None:
 
     try:
         client = TestClient(app)
-
         response = client.patch(
             "/auth/me",
             json={
@@ -155,3 +154,112 @@ def test_auth_me_rejects_extra_profile_fields() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 422
+
+
+def test_auth_me_updates_date_of_birth_and_age_category() -> None:
+    user_id = uuid4()
+
+    fake_user = SimpleNamespace(
+        id=user_id,
+        first_name="Test",
+        last_name="Participant",
+        email="participant@example.com",
+        phone_number="0550000000",
+        date_of_birth=date(2000, 1, 1),
+        age_category_id=4,
+        wilaya="Algiers",
+        role="PARTICIPANT",
+    )
+
+    class FakeResult:
+        def scalar_one_or_none(self) -> SimpleNamespace:
+            return SimpleNamespace(id=5)
+
+    class FakeDb:
+        def execute(self, statement: object) -> FakeResult:
+            return FakeResult()
+
+        def commit(self) -> None:
+            pass
+
+        def refresh(self, instance: object) -> None:
+            pass
+
+    def override_get_current_user() -> SimpleNamespace:
+        return fake_user
+
+    def override_get_db() -> FakeDb:
+        return FakeDb()
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        client = TestClient(app)
+
+        response = client.patch(
+            "/auth/me",
+            json={"date_of_birth": "1995-05-20"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["date_of_birth"] == "1995-05-20"
+    assert response.json()["age_category_id"] == 5
+    assert fake_user.date_of_birth == date(1995, 5, 20)
+    assert fake_user.age_category_id == 5
+
+
+def test_auth_me_rejects_ineligible_date_of_birth() -> None:
+    user_id = uuid4()
+
+    fake_user = SimpleNamespace(
+        id=user_id,
+        first_name="Test",
+        last_name="Participant",
+        email="participant@example.com",
+        phone_number="0550000000",
+        date_of_birth=date(2000, 1, 1),
+        age_category_id=4,
+        wilaya="Algiers",
+        role="PARTICIPANT",
+    )
+
+    class FakeResult:
+        def scalar_one_or_none(self) -> None:
+            return None
+
+    class FakeDb:
+        def execute(self, statement: object) -> FakeResult:
+            return FakeResult()
+
+        def commit(self) -> None:
+            pass
+
+        def refresh(self, instance: object) -> None:
+            pass
+
+    def override_get_current_user() -> SimpleNamespace:
+        return fake_user
+
+    def override_get_db() -> FakeDb:
+        return FakeDb()
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        client = TestClient(app)
+
+        response = client.patch(
+            "/auth/me",
+            json={"date_of_birth": "2021-01-01"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Age is not eligible for registration"}
+    assert fake_user.date_of_birth == date(2000, 1, 1)
+    assert fake_user.age_category_id == 4
