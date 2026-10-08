@@ -9,6 +9,8 @@ from alembic import context
 from app.models.age_category import AgeCategory
 from app.models.user import User
 from app.models.training_type import TrainingType
+from app.models.session import Session
+from app.models.session_target_category import SessionTargetCategory
 
 from app.models.base import Base
 
