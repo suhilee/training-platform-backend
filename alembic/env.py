@@ -11,6 +11,8 @@ from app.models.user import User
 from app.models.training_type import TrainingType
 from app.models.session import Session
 from app.models.session_target_category import SessionTargetCategory
+from app.models.registration import Registration
+from app.models.attendance import Attendance
 
 from app.models.base import Base
 

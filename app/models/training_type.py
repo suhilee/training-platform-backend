@@ -1,11 +1,14 @@
 from uuid import UUID, uuid4
+from typing import TYPE_CHECKING
 
 from sqlalchemy import String, Text
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
+if TYPE_CHECKING:
+    from app.models.session import Session
 
 class TrainingType(Base):
     __tablename__ = "training_types"
@@ -31,4 +34,8 @@ class TrainingType(Base):
     description: Mapped[str | None] = mapped_column(
     Text,
     nullable=True,
+    )
+
+    sessions: Mapped[list["Session"]] = relationship(
+    back_populates="training_type",
     )
