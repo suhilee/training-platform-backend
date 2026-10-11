@@ -2,10 +2,14 @@ from uuid import UUID
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.session import Session
 
 class SessionTargetCategory(Base):
     __tablename__ = "session_target_categories"
@@ -21,4 +25,6 @@ class SessionTargetCategory(Base):
     primary_key=True,
     )
 
-    
+    session: Mapped["Session"] = relationship(
+    back_populates="target_categories",
+    )

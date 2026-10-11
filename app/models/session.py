@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.training_type import TrainingType
-
+from app.models.session_target_category import SessionTargetCategory
 
 class Session(Base):
     __tablename__ = "sessions"
@@ -39,6 +39,11 @@ class Session(Base):
     back_populates="sessions",
     )
 
+    target_categories: Mapped[list["SessionTargetCategory"]] = relationship(
+    back_populates="session",
+    cascade="all, delete-orphan",
+    )
+    
     title: Mapped[str] = mapped_column(
     String(200),
     nullable=False,
