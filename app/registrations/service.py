@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
-from app.models.session_target_category import SessionTargetCategory
 from app.models.user import User
 
 from app.registrations.exceptions import (
@@ -18,6 +17,7 @@ from app.registrations.exceptions import (
     SessionFullError,
     SessionNotFoundError,
     SessionCompletedError,
+    RegistrationClosedError,
 )
 
 def register_for_session(
@@ -55,23 +55,29 @@ def register_for_session(
     session_end = session_start + timedelta(
         minutes=training_session.duration_minutes,
     )
+    registration_cutoff = session_start - timedelta(hours=1)
 
-    if datetime.now() >= session_end:
+    now = datetime.now()
+
+    if now >= session_end:
         raise SessionCompletedError
-    
-    if training_session.registered_count >= training_session.max_capacity:
-        raise SessionFullError
+
+    if now >= registration_cutoff:
+        raise RegistrationClosedError
 
     registration_statement = (
-            select(Registration)
-            .where(Registration.session_id == session_id)
-            .where(Registration.user_id == current_user.id)
+        select(Registration)
+        .where(Registration.session_id == session_id)
+        .where(Registration.user_id == current_user.id)
     )
 
     existing_registration = db.execute(registration_statement).scalar_one_or_none()
 
     if existing_registration is not None:
         raise AlreadyRegisteredError
+
+    if training_session.registered_count >= training_session.max_capacity:
+        raise SessionFullError
 
     registration = Registration(
     user_id=current_user.id,

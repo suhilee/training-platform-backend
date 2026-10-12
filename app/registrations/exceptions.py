@@ -17,5 +17,10 @@ class AlreadyRegisteredError(Exception):
 class SessionFullError(Exception):
     pass
 
+
 class SessionCompletedError(Exception):
+    pass
+
+
+class RegistrationClosedError(Exception):
     pass
