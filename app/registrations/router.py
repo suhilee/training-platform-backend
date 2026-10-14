@@ -1,4 +1,6 @@
 from uuid import UUID
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from sqlalchemy.orm import Session
@@ -7,7 +9,14 @@ from app.auth.dependencies import get_current_user
 from app.db import get_db
 from app.models.user import User
 
-from app.registrations.schemas import RegistrationResponse
+from app.registrations.schemas import (
+    RegistrationResponse,
+    SessionListItemResponse,
+)
+
+from app.sessions.service import get_eligible_sessions
+from app.sessions.status import get_session_status
+
 from app.registrations.service import register_for_session
 from app.registrations.service import unregister_from_session
 
@@ -28,6 +37,55 @@ router = APIRouter(
     prefix="/sessions",
     tags=["registrations"],
 )
+
+@router.get(
+    "",
+    response_model=list[SessionListItemResponse],
+)
+def list_eligible_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[SessionListItemResponse]:
+    sessions = get_eligible_sessions(
+        db=db,
+        current_user=current_user,
+    )
+    now = datetime.now()
+
+    status_order = {
+    "open": 0,
+    "running": 1,
+    "full": 2,
+    "completed": 3,
+    "cancelled": 4,
+    }
+
+    response_items = [
+        SessionListItemResponse(
+            id=training_session.id,
+            title=training_session.title,
+            description=training_session.description,
+            date=training_session.date,
+            start_time=training_session.start_time,
+            duration_minutes=training_session.duration_minutes,
+            max_capacity=training_session.max_capacity,
+            registered_count=training_session.registered_count,
+            instructor_name=training_session.instructor_name,
+            is_cancelled=training_session.is_cancelled,
+            status=get_session_status(training_session, now),
+        )
+        for training_session in sessions
+    ]
+
+    return sorted(
+        response_items,
+        key=lambda item: (
+            status_order[item.status],
+            item.date,
+            item.start_time,
+        ),
+    )
+
 
 @router.post(
     "/{session_id}/register",
@@ -94,6 +152,7 @@ def register(
         registered_at=registration.registered_at,
     )
 
+
 @router.delete(
     "/{session_id}/register",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -139,3 +198,4 @@ def unregister_from_training_session(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while processing your request.",
         )
+
