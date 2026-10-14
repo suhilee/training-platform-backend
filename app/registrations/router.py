@@ -9,6 +9,7 @@ from app.models.user import User
 
 from app.registrations.schemas import RegistrationResponse
 from app.registrations.service import register_for_session
+from app.registrations.service import unregister_from_session
 
 from app.registrations.exceptions import (
     AlreadyRegisteredError,
@@ -18,6 +19,8 @@ from app.registrations.exceptions import (
     SessionCompletedError,
     SessionFullError,
     SessionNotFoundError,
+    NotRegisteredError,
+    UnregistrationClosedError,
 )
 
 
@@ -90,3 +93,49 @@ def register(
         session_id=registration.session_id,
         registered_at=registration.registered_at,
     )
+
+@router.delete(
+    "/{session_id}/register",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def unregister_from_training_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    try:
+        unregister_from_session(
+            db=db,
+            current_user=current_user,
+            session_id=session_id,
+        )
+
+    except NotRegisteredError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You are not registered for this session.",
+        )
+
+    except SessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    except SessionCancelledError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="This session has been cancelled.",
+        )
+
+    except UnregistrationClosedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unregistration for this session is closed.",
+        )
+
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while processing your request.",
+        )

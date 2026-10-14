@@ -24,3 +24,9 @@ class SessionCompletedError(Exception):
 
 class RegistrationClosedError(Exception):
     pass
+
+class NotRegisteredError(Exception):
+    pass
+
+class UnregistrationClosedError(Exception):
+    pass

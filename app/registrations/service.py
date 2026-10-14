@@ -12,12 +12,14 @@ from app.models.user import User
 
 from app.registrations.exceptions import (
     AlreadyRegisteredError,
+    NotRegisteredError,
     IneligibleForSessionError,
     SessionCancelledError,
     SessionFullError,
     SessionNotFoundError,
     SessionCompletedError,
     RegistrationClosedError,
+    UnregistrationClosedError
 )
 
 def register_for_session(
@@ -103,3 +105,51 @@ def register_for_session(
         raise AlreadyRegisteredError
 
     return registration
+
+
+def unregister_from_session(
+    db: Session,
+    current_user: User,
+    session_id: UUID,
+) -> None:
+    session_statement = (
+        select(TrainingSession)
+        .where(TrainingSession.id == session_id)
+        .with_for_update()
+    )
+
+    training_session = db.execute(session_statement).scalar_one_or_none()
+
+    if training_session is None:
+        raise SessionNotFoundError
+
+    if training_session.is_cancelled:
+        raise SessionCancelledError
+
+    cutoff_time = datetime.combine(
+        training_session.date,
+        training_session.start_time,
+    ) - timedelta(hours=1)
+
+    if datetime.now() >= cutoff_time:
+        raise UnregistrationClosedError
+
+    registration_statement = (
+        select(Registration)
+        .where(Registration.session_id == session_id)
+        .where(Registration.user_id == current_user.id)
+    )
+
+    if training_session.registered_count <= 0:
+        raise RuntimeError(
+            "Registration count cannot be decremented below zero."
+            )
+    
+    existing_registration = db.execute(registration_statement).scalar_one_or_none()
+
+    if existing_registration is None:
+        raise NotRegisteredError
+
+    db.delete(existing_registration)
+    training_session.registered_count -= 1
+    db.commit()
