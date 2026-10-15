@@ -13,6 +13,7 @@ from app.registrations.schemas import (
     RegistrationResponse,
     SessionListItemResponse,
     JoinSessionResponse,
+    MySessionItemResponse,
 )
 
 from app.sessions.exceptions import SessionNotFoundOrIneligibleError
@@ -23,6 +24,8 @@ from app.registrations.service import (
     register_for_session,
     unregister_from_session,
     join_session,
+    get_my_sessions,
+    get_registration_state,
 )
 
 from app.registrations.exceptions import (
@@ -91,6 +94,45 @@ def list_eligible_sessions(
             item.start_time,
         ),
     )
+
+
+@router.get(
+    "/my",
+    response_model=list[MySessionItemResponse],
+)
+def list_my_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[MySessionItemResponse]:
+    my_sessions = get_my_sessions(
+        db=db,
+        current_user=current_user,
+    )
+
+    now = datetime.now()
+
+    return [
+        MySessionItemResponse(
+            id=training_session.id,
+            title=training_session.title,
+            description=training_session.description,
+            date=training_session.date,
+            start_time=training_session.start_time,
+            duration_minutes=training_session.duration_minutes,
+            max_capacity=training_session.max_capacity,
+            registered_count=training_session.registered_count,
+            instructor_name=training_session.instructor_name,
+            is_cancelled=training_session.is_cancelled,
+            status=get_session_status(training_session, now),
+            registration_id=registration.id,
+            registration_state=get_registration_state(
+                training_session,
+                has_attendance,
+            ),
+            registered_at=registration.registered_at,
+        )
+        for registration, training_session, has_attendance in my_sessions
+    ]
 
 
 @router.get(

@@ -25,3 +25,9 @@ class SessionListItemResponse(BaseModel):
 
 class JoinSessionResponse(BaseModel):
     zoom_url: str
+
+# inherit from SessionListItemResponse
+class MySessionItemResponse(SessionListItemResponse):
+    registration_id: UUID
+    registration_state: str
+    registered_at: datetime

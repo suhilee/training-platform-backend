@@ -2,7 +2,7 @@ from uuid import UUID
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, outerjoin
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -212,7 +212,7 @@ def join_session(
         raise NotRegisteredError
 
     attendance = db.get(Attendance, registration.id)
-    
+
     # Idempotent operation:
     # if the attendance record already exists, we don't create a new one.
     if attendance is None:
@@ -223,3 +223,64 @@ def join_session(
         db.commit()
 
     return training_session.zoom_url
+
+def get_registration_state(
+    training_session: TrainingSession,
+    has_attendance: bool,
+) -> str:
+    if training_session.is_cancelled:
+        return "cancelled"
+
+    session_start = datetime.combine(
+        training_session.date,
+        training_session.start_time,
+    )
+
+    session_end = session_start + timedelta(
+        minutes=training_session.duration_minutes,
+    )
+
+    now = datetime.now()
+
+    if now < session_start:
+        return "registered"
+
+    if now < session_end:
+        return "ongoing"
+
+    if has_attendance:
+        return "attended"
+
+    return "absent"
+
+def get_my_sessions(
+    db: Session,
+    current_user: User,
+) -> list[tuple[Registration, TrainingSession, bool]]:
+    statement = (
+        select(
+            Registration,
+            TrainingSession,
+            Attendance.registration_id,
+        )
+        .join(
+            TrainingSession,
+            Registration.session_id == TrainingSession.id,
+        )
+        .outerjoin(
+            Attendance,
+            Attendance.registration_id == Registration.id,
+        )
+        .where(Registration.user_id == current_user.id)
+    )
+
+    rows = db.execute(statement).all()
+
+    return [
+        (
+            registration,
+            training_session,
+            attendance_registration_id is not None,
+        )
+        for registration, training_session, attendance_registration_id in rows
+    ]
