@@ -12,13 +12,18 @@ from app.models.user import User
 from app.registrations.schemas import (
     RegistrationResponse,
     SessionListItemResponse,
+    JoinSessionResponse,
 )
 
-from app.sessions.service import get_eligible_sessions
+from app.sessions.exceptions import SessionNotFoundOrIneligibleError
+from app.sessions.service import get_eligible_sessions, get_eligible_session_by_id
 from app.sessions.status import get_session_status
 
-from app.registrations.service import register_for_session
-from app.registrations.service import unregister_from_session
+from app.registrations.service import (
+    register_for_session,
+    unregister_from_session,
+    join_session,
+)
 
 from app.registrations.exceptions import (
     AlreadyRegisteredError,
@@ -83,6 +88,45 @@ def list_eligible_sessions(
             status_order[item.status],
             item.date,
             item.start_time,
+        ),
+    )
+
+
+@router.get(
+    "/{session_id}",
+    response_model=SessionListItemResponse,
+)
+def get_eligible_session_detail(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> SessionListItemResponse:
+    try:
+        training_session = get_eligible_session_by_id(
+            db=db,
+            current_user=current_user,
+            session_id=session_id,
+        )
+    except SessionNotFoundOrIneligibleError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    return SessionListItemResponse(
+        id=training_session.id,
+        title=training_session.title,
+        description=training_session.description,
+        date=training_session.date,
+        start_time=training_session.start_time,
+        duration_minutes=training_session.duration_minutes,
+        max_capacity=training_session.max_capacity,
+        registered_count=training_session.registered_count,
+        instructor_name=training_session.instructor_name,
+        is_cancelled=training_session.is_cancelled,
+        status=get_session_status(
+            training_session,
+            datetime.now(),
         ),
     )
 
