@@ -22,3 +22,6 @@ class SessionListItemResponse(BaseModel):
     instructor_name: str
     is_cancelled: bool
     status: str
+
+class JoinSessionResponse(BaseModel):
+    zoom_url: str

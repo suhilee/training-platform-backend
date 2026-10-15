@@ -35,6 +35,7 @@ from app.registrations.exceptions import (
     SessionNotFoundError,
     NotRegisteredError,
     UnregistrationClosedError,
+    ZoomAccessNotOpenError,
 )
 
 
@@ -194,6 +195,57 @@ def register(
         id=registration.id,
         session_id=registration.session_id,
         registered_at=registration.registered_at,
+    )
+
+
+@router.post(
+    "/{session_id}/join",
+    response_model=JoinSessionResponse,
+)
+def join_training_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> JoinSessionResponse:
+    try:
+        zoom_url = join_session(
+            db=db,
+            current_user=current_user,
+            session_id=session_id,
+        )
+    except NotRegisteredError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not registered for this session.",
+        )
+    except ZoomAccessNotOpenError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Zoom access is not available yet.",
+        )
+    except IneligibleForSessionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not eligible to join this session.",
+        )
+    except SessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+    except SessionCancelledError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="This session has been cancelled.",
+        )
+    except SessionCompletedError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="This session has already been completed.",
+        )
+
+    return JoinSessionResponse(
+        zoom_url=zoom_url,
     )
 
 

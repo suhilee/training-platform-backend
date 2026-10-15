@@ -30,3 +30,6 @@ class NotRegisteredError(Exception):
 
 class UnregistrationClosedError(Exception):
     pass
+
+class ZoomAccessNotOpenError(Exception):
+    pass

@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.registration import Registration
+from app.models.attendance import Attendance
 from app.models.session import Session as TrainingSession
 from app.models.user import User
 
@@ -19,7 +20,8 @@ from app.registrations.exceptions import (
     SessionNotFoundError,
     SessionCompletedError,
     RegistrationClosedError,
-    UnregistrationClosedError
+    UnregistrationClosedError,
+    ZoomAccessNotOpenError,
 )
 
 def register_for_session(
@@ -106,7 +108,6 @@ def register_for_session(
 
     return registration
 
-
 def unregister_from_session(
     db: Session,
     current_user: User,
@@ -153,3 +154,72 @@ def unregister_from_session(
     db.delete(existing_registration)
     training_session.registered_count -= 1
     db.commit()
+
+def join_session(
+        db: Session,
+        current_user: User,
+        session_id: UUID,
+) -> str:
+    session_statement = (
+        select(TrainingSession)
+        .where(TrainingSession.id == session_id)
+    )
+
+    training_session = db.execute(session_statement).scalar_one_or_none()
+
+    if training_session is None:
+        raise SessionNotFoundError
+
+    if training_session.is_cancelled:
+        raise SessionCancelledError
+
+    target_category_ids = {
+        category.age_category_id
+        for category in training_session.target_categories
+    }
+
+    if current_user.age_category_id not in target_category_ids:
+        raise IneligibleForSessionError
+
+    session_start = datetime.combine(
+        training_session.date,
+        training_session.start_time,
+    )
+
+    session_end = session_start + timedelta(
+        minutes=training_session.duration_minutes,
+    )
+
+    zoom_access_opens_at = session_start - timedelta(hours=1)
+
+    now = datetime.now()
+
+    if now >= session_end:
+        raise SessionCompletedError
+
+    if now < zoom_access_opens_at:
+        raise ZoomAccessNotOpenError
+
+    registration_statement = (
+        select(Registration)
+        .where(Registration.session_id == session_id)
+        .where(Registration.user_id == current_user.id)
+    )
+
+    registration = db.execute(registration_statement).scalar_one_or_none()
+
+    if registration is None:
+        raise NotRegisteredError
+
+    attendance = db.get(Attendance, registration.id)
+    
+    # Idempotent operation:
+    # if the attendance record already exists, we don't create a new one.
+    if attendance is None:
+        attendance = Attendance(
+            registration_id=registration.id,
+        )
+        db.add(attendance)
+        db.commit()
+
+    return training_session.zoom_url
