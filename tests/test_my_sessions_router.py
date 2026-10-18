@@ -42,7 +42,7 @@ def test_list_my_sessions_returns_participant_registrations(
     )
 
     monkeypatch.setattr(
-        "app.registrations.router.get_my_sessions",
+        "app.sessions.router.get_my_sessions",
         service_mock,
     )
 

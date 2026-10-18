@@ -28,7 +28,7 @@ def test_join_session_returns_zoom_url_for_authorised_user(
     )
 
     monkeypatch.setattr(
-        "app.registrations.router.join_session",
+        "app.sessions.router.join_session",
         service_mock,
     )
 
@@ -68,7 +68,7 @@ def test_join_session_returns_403_before_zoom_access_opens(
     )
 
     monkeypatch.setattr(
-        "app.registrations.router.join_session",
+        "app.sessions.router.join_session",
         service_mock,
     )
 
@@ -103,7 +103,7 @@ def test_join_session_returns_403_for_unregistered_user(
     session_id = uuid4()
 
     monkeypatch.setattr(
-        "app.registrations.router.join_session",
+        "app.sessions.router.join_session",
         Mock(side_effect=NotRegisteredError),
     )
 

@@ -38,7 +38,7 @@ def test_list_sessions_returns_eligible_sessions_without_zoom_url(
     service_mock = Mock(return_value=[training_session])
 
     monkeypatch.setattr(
-        "app.registrations.router.get_eligible_sessions",
+        "app.sessions.router.get_eligible_sessions",
         service_mock,
     )
 
@@ -112,7 +112,7 @@ def test_list_sessions_orders_open_sessions_by_earliest_start_time(
     )
 
     monkeypatch.setattr(
-        "app.registrations.router.get_eligible_sessions",
+        "app.sessions.router.get_eligible_sessions",
         service_mock,
     )
 
@@ -166,7 +166,7 @@ def test_get_session_detail_returns_eligible_session_without_zoom_url(
     service_mock = Mock(return_value=training_session)
 
     monkeypatch.setattr(
-        "app.registrations.router.get_eligible_session_by_id",
+        "app.sessions.router.get_eligible_session_by_id",
         service_mock,
     )
 
@@ -210,7 +210,7 @@ def test_get_session_detail_returns_404_when_not_found_or_ineligible(
     )
 
     monkeypatch.setattr(
-        "app.registrations.router.get_eligible_session_by_id",
+        "app.sessions.router.get_eligible_session_by_id",
         service_mock,
     )
 
