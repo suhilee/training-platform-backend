@@ -4,7 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_current_user, require_role
+from app.auth.dependencies import (
+    get_current_user,
+    require_role,
+)
+
 from app.db import get_db
 from app.models.user import User, UserRole
 from app.registrations.schemas import (
@@ -12,13 +16,19 @@ from app.registrations.schemas import (
     MySessionItemResponse,
     JoinSessionResponse,
 )
-from app.sessions.schemas import SessionCreateRequest, SessionCreateResponse
+from app.sessions.schemas import (
+    SessionCreateRequest,
+    SessionCreateResponse,
+    SessionUpdateRequest,
+)
 
 from app.sessions.exceptions import (
     SessionNotFoundOrIneligibleError,
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
     SessionNotFoundError as ManagedSessionNotFoundError,
+    CapacityBelowRegistrationCountError,
+    TargetAgeCategoryHasRegistrationsError,
 )
 
 from app.registrations.exceptions import (
@@ -40,6 +50,7 @@ from app.registrations.service import (
 from app.sessions.management_service import (
     create_session,
     cancel_session,
+    update_session,
 )
 
 router = APIRouter(
@@ -224,7 +235,7 @@ def join_training_session(
         zoom_url=zoom_url,
     )
 
-# SESSION-MANAGER ACTIONS
+###### SESSION-MANAGER ACTIONS ######
 
 @router.post(
     "",
@@ -295,3 +306,55 @@ def cancel_training_session(
         "is_cancelled": cancelled_session.is_cancelled,
     }
 
+
+@router.put(
+    "/{session_id}",
+    response_model=SessionListItemResponse,
+)
+def update_training_session(
+    session_id: UUID,
+    request: SessionUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.SESSION_MANAGER),
+    ),
+) -> SessionListItemResponse:
+    try:
+        updated_session = update_session(
+            db=db,
+            session_id=session_id,
+            request=request,
+        )
+    except CapacityBelowRegistrationCountError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Capacity cannot be lower than the "
+                "current registration count."
+            ),
+        )
+    except TargetAgeCategoryHasRegistrationsError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "A target age category with registered "
+                "participants cannot be removed."
+            ),
+        )
+
+    return SessionListItemResponse(
+        id=updated_session.id,
+        title=updated_session.title,
+        description=updated_session.description,
+        date=updated_session.date,
+        start_time=updated_session.start_time,
+        duration_minutes=updated_session.duration_minutes,
+        max_capacity=updated_session.max_capacity,
+        registered_count=updated_session.registered_count,
+        instructor_name=updated_session.instructor_name,
+        is_cancelled=updated_session.is_cancelled,
+        status=get_session_status(
+            updated_session,
+            datetime.now(),
+        ),
+    )

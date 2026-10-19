@@ -11,3 +11,10 @@ class AgeCategoryNotFoundError(Exception):
 # for session manager side error
 class SessionNotFoundError(Exception):
     pass
+
+# for session manager updating capacity with conflict
+class CapacityBelowRegistrationCountError(Exception):
+    pass
+
+class TargetAgeCategoryHasRegistrationsError(Exception):
+    pass

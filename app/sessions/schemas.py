@@ -62,3 +62,27 @@ class SessionCreateResponse(BaseModel):
     registered_count: int
     instructor_name: str
     is_cancelled: bool
+
+class SessionUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1)
+    date: date
+    start_time: time
+    duration_minutes: int = Field(gt=0)
+    max_capacity: int = Field(gt=0)
+    zoom_url: str = Field(min_length=1, max_length=2_000)
+    instructor_name: str = Field(min_length=1, max_length=200)
+    target_age_category_ids: list[int] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_target_age_categories(
+        self,
+    ) -> "SessionUpdateRequest":
+        if len(self.target_age_category_ids) != len(
+            set(self.target_age_category_ids)
+        ):
+            raise ValueError(
+                "Target age category IDs must be unique."
+            )
+
+        return self

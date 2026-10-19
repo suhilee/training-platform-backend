@@ -9,10 +9,13 @@ from app.auth.dependencies import get_current_user
 from app.db import get_db
 from app.main import app
 from app.models.user import UserRole
+from app.sessions.schemas import SessionUpdateRequest
 from app.sessions.exceptions import (
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
     SessionNotFoundError,
+    CapacityBelowRegistrationCountError,
+    TargetAgeCategoryHasRegistrationsError,
 )
 
 
@@ -425,3 +428,158 @@ def test_participant_cannot_cancel_session(
         "You do not have permission to perform this action."
     )
     service_mock.assert_not_called()
+
+def test_session_manager_can_update_session(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    updated_session = SimpleNamespace(
+        id=session_id,
+        training_id=uuid4(),
+        title="Updated AI Session",
+        description="An updated beginner session.",
+        date=date(2030, 1, 2),
+        start_time=time(11, 0),
+        duration_minutes=90,
+        max_capacity=20,
+        registered_count=10,
+        instructor_name="John Doe",
+        is_cancelled=False,
+    )
+    service_mock = Mock(return_value=updated_session)
+
+    monkeypatch.setattr(
+        "app.sessions.router.update_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    payload = {
+        "title": "Updated AI Session",
+        "description": "An updated beginner session.",
+        "date": "2030-01-02",
+        "start_time": "11:00:00",
+        "duration_minutes": 90,
+        "max_capacity": 20,
+        "zoom_url": "https://secret.example.com/updated-meeting",
+        "instructor_name": "John Doe",
+        "target_age_category_ids": [3, 4],
+    }
+
+    try:
+        response = client.put(
+            f"/sessions/{session_id}",
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(session_id)
+    assert response.json()["title"] == "Updated AI Session"
+    assert response.json()["registered_count"] == 10
+    assert "zoom_url" not in response.json()
+
+    service_mock.assert_called_once()
+
+def test_session_manager_gets_409_when_capacity_is_below_registrations(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    service_mock = Mock(
+        side_effect=CapacityBelowRegistrationCountError,
+    )
+
+    monkeypatch.setattr(
+        "app.sessions.router.update_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    payload = {
+        "title": "Updated AI Session",
+        "description": "An updated beginner session.",
+        "date": "2030-01-02",
+        "start_time": "11:00:00",
+        "duration_minutes": 90,
+        "max_capacity": 9,
+        "zoom_url": "https://secret.example.com/updated-meeting",
+        "instructor_name": "John Doe",
+        "target_age_category_ids": [3],
+    }
+
+    try:
+        response = client.put(
+            f"/sessions/{session_id}",
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Capacity cannot be lower than the "
+        "current registration count."
+    )
+
+def test_session_manager_gets_409_when_removing_category_with_registrants(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    service_mock = Mock(
+        side_effect=TargetAgeCategoryHasRegistrationsError,
+    )
+
+    monkeypatch.setattr(
+        "app.sessions.router.update_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    payload = {
+        "title": "Updated AI Session",
+        "description": "An updated beginner session.",
+        "date": "2030-01-02",
+        "start_time": "11:00:00",
+        "duration_minutes": 90,
+        "max_capacity": 20,
+        "zoom_url": "https://secret.example.com/updated-meeting",
+        "instructor_name": "John Doe",
+        "target_age_category_ids": [2],
+    }
+
+    try:
+        response = client.put(
+            f"/sessions/{session_id}",
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "A target age category with registered "
+        "participants cannot be removed."
+    )
+
