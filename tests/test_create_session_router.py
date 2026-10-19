@@ -12,6 +12,7 @@ from app.models.user import UserRole
 from app.sessions.exceptions import (
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
+    SessionNotFoundError,
 )
 
 
@@ -321,3 +322,106 @@ def test_create_session_rejects_duplicate_target_age_categories(
     assert response.status_code == 422
     service_mock.assert_not_called()
 
+def test_session_manager_can_cancel_session(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    cancelled_session = SimpleNamespace(
+        id=session_id,
+        is_cancelled=True,
+    )
+    service_mock = Mock(return_value=cancelled_session)
+
+    monkeypatch.setattr(
+        "app.sessions.router.cancel_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/sessions/{session_id}/cancel",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(session_id),
+        "is_cancelled": True,
+    }
+    service_mock.assert_called_once_with(
+        db=fake_db,
+        session_id=session_id,
+    )
+
+def test_session_manager_gets_404_for_unknown_session_when_cancelling(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    service_mock = Mock(side_effect=SessionNotFoundError)
+
+    monkeypatch.setattr(
+        "app.sessions.router.cancel_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/sessions/{session_id}/cancel",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Session not found."
+    service_mock.assert_called_once_with(
+        db=fake_db,
+        session_id=session_id,
+    )
+
+def test_participant_cannot_cancel_session(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    participant = SimpleNamespace(role=UserRole.PARTICIPANT)
+    session_id = uuid4()
+    service_mock = Mock()
+
+    monkeypatch.setattr(
+        "app.sessions.router.cancel_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: participant
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/sessions/{session_id}/cancel",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "You do not have permission to perform this action."
+    )
+    service_mock.assert_not_called()

@@ -1,11 +1,15 @@
 import pytest
 from uuid import uuid4
 from unittest.mock import Mock, call
+from datetime import datetime
 
 from app.sessions.exceptions import (
     TrainingTypeNotFoundError,
-    AgeCategoryNotFoundError)
-from app.sessions.management_service import create_session
+    AgeCategoryNotFoundError,
+    SessionNotFoundError,
+)
+
+from app.sessions.management_service import create_session, cancel_session
 from app.sessions.schemas import (
     SessionCreateRequest,
     NewTrainingTypeInput
@@ -163,5 +167,81 @@ def test_create_session_rejects_unknown_target_age_category() -> None:
         create_session(db=db, request=request)
 
     db.add.assert_not_called()
+    db.commit.assert_not_called()
+    db.refresh.assert_not_called()
+
+def test_cancel_session_marks_existing_session_as_cancelled(
+    monkeypatch,
+) -> None:
+    session_id = uuid4()
+    training_session = Mock(
+        id=session_id,
+        is_cancelled=False,
+        cancelled_at=None,
+    )
+    db = Mock()
+    db.get.return_value = training_session
+
+    cancelled_at = datetime(2030, 1, 1, 9, 30, 0)
+    monkeypatch.setattr(
+        "app.sessions.management_service.datetime",
+        Mock(now=Mock(return_value=cancelled_at)),
+    )
+
+    result = cancel_session(
+        db=db,
+        session_id=session_id,
+    )
+
+    assert result is training_session
+    assert training_session.is_cancelled is True
+    assert training_session.cancelled_at == cancelled_at
+    db.get.assert_called_once_with(TrainingSession, session_id)
+    db.commit.assert_called_once()
+    db.refresh.assert_called_once_with(training_session)
+
+def test_cancel_session_rejects_unknown_session() -> None:
+    session_id = uuid4()
+    db = Mock()
+    db.get.return_value = None
+
+    with pytest.raises(SessionNotFoundError):
+        cancel_session(
+            db=db,
+            session_id=session_id,
+        )
+
+    db.get.assert_called_once_with(TrainingSession, session_id)
+    db.commit.assert_not_called()
+    db.refresh.assert_not_called()
+
+def test_cancel_session_preserves_existing_cancellation_time(
+    monkeypatch,
+) -> None:
+    session_id = uuid4()
+    original_cancelled_at = datetime(2030, 1, 1, 9, 30, 0)
+
+    training_session = Mock(
+        id=session_id,
+        is_cancelled=True,
+        cancelled_at=original_cancelled_at,
+    )
+    db = Mock()
+    db.get.return_value = training_session
+
+    later_time = datetime(2030, 1, 2, 9, 30, 0)
+    monkeypatch.setattr(
+        "app.sessions.management_service.datetime",
+        Mock(now=Mock(return_value=later_time)),
+    )
+
+    result = cancel_session(
+        db=db,
+        session_id=session_id,
+    )
+
+    assert result is training_session
+    assert training_session.is_cancelled is True
+    assert training_session.cancelled_at == original_cancelled_at
     db.commit.assert_not_called()
     db.refresh.assert_not_called()

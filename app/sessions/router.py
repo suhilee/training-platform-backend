@@ -18,6 +18,7 @@ from app.sessions.exceptions import (
     SessionNotFoundOrIneligibleError,
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
+    SessionNotFoundError as ManagedSessionNotFoundError,
 )
 
 from app.registrations.exceptions import (
@@ -36,7 +37,10 @@ from app.registrations.service import (
     get_registration_state,
     join_session,
 )
-from app.sessions.management_service import create_session
+from app.sessions.management_service import (
+    create_session,
+    cancel_session,
+)
 
 router = APIRouter(
     prefix="/sessions",
@@ -263,3 +267,31 @@ def create_training_session(
         instructor_name=created_session.instructor_name,
         is_cancelled=created_session.is_cancelled,
     )
+
+
+@router.post(
+    "/{session_id}/cancel",
+)
+def cancel_training_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.SESSION_MANAGER),
+    ),
+) -> dict[str, UUID | bool]:
+    try:
+        cancelled_session = cancel_session(
+            db=db,
+            session_id=session_id,
+        )
+    except ManagedSessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    return {
+        "id": cancelled_session.id,
+        "is_cancelled": cancelled_session.is_cancelled,
+    }
+

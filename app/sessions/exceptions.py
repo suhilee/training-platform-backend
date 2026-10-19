@@ -7,3 +7,7 @@ class TrainingTypeNotFoundError(Exception):
 
 class AgeCategoryNotFoundError(Exception):
     pass
+
+# for session manager side error
+class SessionNotFoundError(Exception):
+    pass

@@ -1,3 +1,5 @@
+from datetime import datetime
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.session import Session as TrainingSession
@@ -5,6 +7,7 @@ from app.models.training_type import TrainingType
 from app.sessions.exceptions import (
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
+    SessionNotFoundError,
 )
 
 from app.sessions.schemas import SessionCreateRequest
@@ -66,3 +69,26 @@ def create_session(
     db.refresh(created_session)
 
     return created_session
+
+def cancel_session(
+    db: Session,
+    session_id: UUID,
+) -> TrainingSession:
+    training_session = db.get(
+        TrainingSession,
+        session_id,
+    )
+
+    if training_session is None:
+        raise SessionNotFoundError
+
+    if training_session.is_cancelled:
+        return training_session
+
+    training_session.is_cancelled = True
+    training_session.cancelled_at = datetime.now()
+
+    db.commit()
+    db.refresh(training_session)
+
+    return training_session
