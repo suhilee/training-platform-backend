@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     app_name: str = "7.77 Training Platform API"
     app_environment: str = "development"
     database_url: str
+    test_database_url: str
 
     # JWT settings
     jwt_secret_key: str
