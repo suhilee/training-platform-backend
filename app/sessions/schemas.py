@@ -86,3 +86,20 @@ class SessionUpdateRequest(BaseModel):
             )
 
         return self
+
+class SessionManagementDetailResponse(BaseModel):
+    id: UUID
+    training_id: UUID
+    title: str
+    description: str
+    date: date
+    start_time: time
+    duration_minutes: int
+    max_capacity: int
+    registered_count: int
+    attended_count: int
+    absent_count: int
+    zoom_url: str
+    instructor_name: str
+    is_cancelled: bool
+    target_age_category_ids: list[int]

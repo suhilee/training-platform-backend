@@ -1,10 +1,11 @@
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
+from app.models.attendance import Attendance
 from app.sessions.exceptions import (
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
@@ -177,3 +178,29 @@ def update_session(
     db.refresh(training_session)
 
     return training_session
+
+def get_session_management_detail(
+    db: Session,
+    session_id: UUID,
+) -> tuple[TrainingSession, int]:
+    training_session = db.get(
+        TrainingSession,
+        session_id,
+    )
+
+    if training_session is None:
+        raise SessionNotFoundError
+
+    attended_count_statement = (
+        select(func.count())
+        .select_from(Attendance)
+        .join(
+            Registration,
+            Attendance.registration_id == Registration.id,
+        )
+        .where(Registration.session_id == session_id)
+    )
+
+    attended_count = db.scalar(attended_count_statement)
+
+    return training_session, attended_count

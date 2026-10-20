@@ -583,3 +583,132 @@ def test_session_manager_gets_409_when_removing_category_with_registrants(
         "participants cannot be removed."
     )
 
+def test_session_manager_can_get_management_session_detail(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+    training_id = uuid4()
+
+    training_session = SimpleNamespace(
+        id=session_id,
+        training_id=training_id,
+        title="Introduction to AI",
+        description="A beginner-friendly AI session.",
+        date=date(2030, 1, 2),
+        start_time=time(10, 0),
+        duration_minutes=90,
+        max_capacity=20,
+        registered_count=5,
+        zoom_url="https://secret.example.com/manager-only",
+        instructor_name="John Doe",
+        is_cancelled=False,
+        target_categories=[
+            SimpleNamespace(age_category_id=1),
+            SimpleNamespace(age_category_id=3),
+        ],
+    )
+
+    service_mock = Mock(
+        return_value=(training_session, 3),
+    )
+
+    monkeypatch.setattr(
+        "app.sessions.router.get_session_management_detail",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    try:
+        response = client.get(
+            f"/sessions/{session_id}/management",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+
+    response_data = response.json()
+
+    assert response_data["id"] == str(session_id)
+    assert response_data["training_id"] == str(training_id)
+    assert response_data["registered_count"] == 5
+    assert response_data["attended_count"] == 3
+    assert response_data["absent_count"] == 2
+    assert response_data["zoom_url"] == (
+        "https://secret.example.com/manager-only"
+    )
+    assert response_data["target_age_category_ids"] == [1, 3]
+
+    service_mock.assert_called_once_with(
+        db=fake_db,
+        session_id=session_id,
+    )
+
+def test_participant_cannot_get_management_session_detail(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    participant = SimpleNamespace(role=UserRole.PARTICIPANT)
+    session_id = uuid4()
+
+    service_mock = Mock()
+
+    monkeypatch.setattr(
+        "app.sessions.router.get_session_management_detail",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: participant
+
+    client = TestClient(app)
+
+    try:
+        response = client.get(
+            f"/sessions/{session_id}/management",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "You do not have permission to perform this action."
+    )
+    service_mock.assert_not_called()
+
+def test_session_manager_gets_404_for_unknown_management_session(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    service_mock = Mock(
+        side_effect=SessionNotFoundError,
+    )
+
+    monkeypatch.setattr(
+        "app.sessions.router.get_session_management_detail",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    try:
+        response = client.get(
+            f"/sessions/{session_id}/management",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Session not found."

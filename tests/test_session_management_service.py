@@ -15,6 +15,7 @@ from app.sessions.management_service import (
     create_session,
     cancel_session,
     update_session,
+    get_session_management_detail,
 )
 
 from app.sessions.schemas import (
@@ -30,6 +31,7 @@ from app.models.session_target_category import SessionTargetCategory
 from app.models.registration import Registration
 from app.models.user import User
 
+# session creation tests
 def test_create_session_rejects_unknown_training_type() -> None:
     training_id = uuid4()
 
@@ -180,6 +182,7 @@ def test_create_session_rejects_unknown_target_age_category() -> None:
     db.commit.assert_not_called()
     db.refresh.assert_not_called()
 
+#session cancellation tests
 def test_cancel_session_marks_existing_session_as_cancelled(
     monkeypatch,
 ) -> None:
@@ -256,6 +259,7 @@ def test_cancel_session_preserves_existing_cancellation_time(
     db.commit.assert_not_called()
     db.refresh.assert_not_called()
 
+#session updates tests
 def test_update_session_rejects_capacity_below_registered_count() -> None:
     session_id = uuid4()
 
@@ -361,7 +365,7 @@ def test_update_session_replaces_target_age_categories() -> None:
 
     db.get.side_effect = get_side_effect
     db.execute.return_value.scalars.return_value.all.return_value = []
-    
+
     request = SessionUpdateRequest(
         title="Updated AI Session",
         description="An updated beginner session.",
@@ -427,3 +431,36 @@ def test_update_session_rejects_removing_category_with_registrants() -> None:
 
     db.commit.assert_not_called()
     db.refresh.assert_not_called()
+
+#session stats tests
+def test_get_session_management_detail_returns_session_and_attended_count() -> None:
+    session_id = uuid4()
+
+    training_session = Mock(
+        id=session_id,
+        registered_count=5,
+    )
+
+    db = Mock()
+    db.get.return_value = training_session
+    db.scalar.return_value = 3
+
+    result_session, attended_count = get_session_management_detail(
+        db=db,
+        session_id=session_id,
+    )
+
+    assert result_session is training_session
+    assert attended_count == 3
+    db.get.assert_called_once_with(TrainingSession, session_id)
+
+def test_get_session_management_detail_rejects_unknown_session() -> None:
+    db = Mock()
+    session_id = uuid4()
+    db.get.return_value = None
+
+    with pytest.raises(SessionNotFoundError):
+        get_session_management_detail(
+            db=db,
+            session_id=session_id,
+        )

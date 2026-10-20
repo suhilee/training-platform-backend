@@ -20,6 +20,7 @@ from app.sessions.schemas import (
     SessionCreateRequest,
     SessionCreateResponse,
     SessionUpdateRequest,
+    SessionManagementDetailResponse,
 )
 
 from app.sessions.exceptions import (
@@ -51,6 +52,7 @@ from app.sessions.management_service import (
     create_session,
     cancel_session,
     update_session,
+    get_session_management_detail,
 )
 
 router = APIRouter(
@@ -357,4 +359,52 @@ def update_training_session(
             updated_session,
             datetime.now(),
         ),
+    )
+
+
+@router.get(
+    "/{session_id}/management",
+    response_model=SessionManagementDetailResponse,
+)
+def get_management_session_detail(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.SESSION_MANAGER),
+    ),
+) -> SessionManagementDetailResponse:
+    try:
+        training_session, attended_count = (
+            get_session_management_detail(
+                db=db,
+                session_id=session_id,
+            )
+        )
+    except ManagedSessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    return SessionManagementDetailResponse(
+        id=training_session.id,
+        training_id=training_session.training_id,
+        title=training_session.title,
+        description=training_session.description,
+        date=training_session.date,
+        start_time=training_session.start_time,
+        duration_minutes=training_session.duration_minutes,
+        max_capacity=training_session.max_capacity,
+        registered_count=training_session.registered_count,
+        attended_count=attended_count,
+        absent_count=(
+            training_session.registered_count - attended_count
+        ),
+        zoom_url=training_session.zoom_url,
+        instructor_name=training_session.instructor_name,
+        is_cancelled=training_session.is_cancelled,
+        target_age_category_ids=[
+            target_category.age_category_id
+            for target_category in training_session.target_categories
+        ],
     )
