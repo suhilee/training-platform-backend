@@ -55,6 +55,18 @@ from app.sessions.management_service import (
     get_session_management_detail,
 )
 
+from app.attendance.exceptions import (
+    InvalidAttendanceSelectionError,
+    SessionNotCompletedError,
+    SessionNotFoundError as AttendanceSessionNotFoundError,
+)
+from app.attendance.schemas import (
+    AttendanceValidationRequest,
+    AttendanceValidationResponse,
+)
+from app.attendance.service import validate_attendances
+
+
 router = APIRouter(
     prefix="/sessions",
     tags=["sessions"],
@@ -238,6 +250,52 @@ def join_training_session(
     )
 
 ###### SESSION-MANAGER ACTIONS ######
+
+@router.post(
+    "/{session_id}/attendance/validate",
+    response_model=AttendanceValidationResponse,
+)
+def validate_session_attendance(
+    session_id: UUID,
+    request: AttendanceValidationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.SESSION_MANAGER),
+    ),
+) -> AttendanceValidationResponse:
+    try:
+        validated_count = validate_attendances(
+            db=db,
+            session_id=session_id,
+            registration_ids=request.registration_ids,
+            current_manager=current_user,
+        )
+
+    except AttendanceSessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    except SessionNotCompletedError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Attendance can only be validated for a completed session.",
+        )
+
+    except InvalidAttendanceSelectionError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "One or more selected registrations are invalid, "
+                "have no attendance record, or were already validated."
+            ),
+        )
+
+    return AttendanceValidationResponse(
+        validated_count=validated_count,
+    )
+
 
 @router.post(
     "",
