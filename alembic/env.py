@@ -13,6 +13,8 @@ from app.models.session import Session
 from app.models.session_target_category import SessionTargetCategory
 from app.models.registration import Registration
 from app.models.attendance import Attendance
+from app.models.certificate import Certificate
+
 
 from app.models.base import Base
 

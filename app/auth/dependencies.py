@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
@@ -11,7 +12,6 @@ from app.db import get_db
 from app.models.user import User, UserRole
 from sqlalchemy.orm import Session
 
-from collections.abc import Callable
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
