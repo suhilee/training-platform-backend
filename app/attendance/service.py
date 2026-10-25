@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.session import Session as TrainingSession
 from app.models.attendance import Attendance
 from app.models.registration import Registration
+from app.models.certificate import Certificate
 from app.attendance.exceptions import (
     InvalidAttendanceSelectionError,
     SessionNotFoundError,
@@ -56,6 +57,13 @@ def validate_attendances(
     for attendance in attendances:
         attendance.validated_at = validated_at
         attendance.validated_by = current_manager.id
+
+        certificate = Certificate(
+            registration_id=attendance.registration_id,
+            validated_by=current_manager.id,
+        )
+        
+        db.add(certificate)
 
     db.commit()
 

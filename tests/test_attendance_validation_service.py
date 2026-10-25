@@ -10,6 +10,7 @@ from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
 from app.models.user import User, UserRole
 from app.models.age_category import AgeCategory
+from app.models.certificate import Certificate
 from app.attendance.exceptions import(
     InvalidAttendanceSelectionError,
     SessionNotCompletedError,
@@ -128,6 +129,31 @@ def test_validate_attendances_marks_selected_attendances_as_validated(
     db_session.refresh(first_attendance)
     db_session.refresh(second_attendance)
 
+    certificates = (
+        db_session.query(Certificate)
+        .filter(
+            Certificate.registration_id.in_(
+                [
+                    first_registration.id,
+                    second_registration.id,
+                ]
+            )
+        )
+        .all()
+    )
+
+    assert len(certificates) == 2
+
+    certificate_registration_ids = {
+        certificate.registration_id
+        for certificate in certificates
+    }
+
+    assert certificate_registration_ids == {
+        first_registration.id,
+        second_registration.id,
+    }
+    
     assert validated_count == 2
 
     assert first_attendance.validated_at is not None
