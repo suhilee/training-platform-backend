@@ -28,3 +28,6 @@ htmlcov/
 
 # Local downloaded installers
 vscode.deb
+
+# Scripts for local tests
+scripts/
