@@ -22,6 +22,7 @@ from app.certificates.exceptions import (
     CertificateNotOwnedError,
 )
 
+from app.certificates.pdf import generate_certificate_pdf
 
 
 def issue_certificate(
@@ -149,3 +150,15 @@ def list_certificates_for_current_user(
         for certificate, registration, participant, training_session in rows
     ]
 
+def get_certificate_pdf(
+    db: Session,
+    registration_id: UUID,
+    current_user: User,
+) -> bytes:
+    certificate_data = get_certificate_data(
+        db=db,
+        registration_id=registration_id,
+        current_user=current_user,
+    )
+
+    return generate_certificate_pdf(certificate_data)

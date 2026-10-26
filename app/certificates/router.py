@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_role
@@ -24,6 +24,7 @@ from app.certificates.service import (
     issue_certificate,
     get_certificate_data,
     list_certificates_for_current_user,
+    get_certificate_pdf,
 )
 
 
@@ -68,6 +69,48 @@ def create_certificate(
         )
 
     return certificate
+
+
+@router.get(
+    "/{registration_id}/pdf",
+    status_code=status.HTTP_200_OK,
+)
+def download_certificate_pdf(
+    registration_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    try:
+        pdf_bytes = get_certificate_pdf(
+            db=db,
+            registration_id=registration_id,
+            current_user=current_user,
+        )
+    except RegistrationNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found.",
+        )
+
+    except CertificateNotOwnedError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Certificate not found.",
+        )
+
+    except CertificateNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Certificate not found.",
+        )
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="certificate.pdf"'
+        },
+    )
 
 
 @router.get(
