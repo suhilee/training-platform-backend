@@ -11,10 +11,18 @@ from app.certificates.exceptions import (
     AttendanceNotValidatedError,
     CertificateAlreadyIssuedError,
     RegistrationNotFoundError,
+    CertificateNotOwnedError,
+    CertificateNotFoundError,
 )
 
-from app.certificates.schemas import CertificateResponse
-from app.certificates.service import issue_certificate
+from app.certificates.schemas import (
+    CertificateResponse,
+    CertificateDataResponse,
+)
+from app.certificates.service import (
+    issue_certificate,
+    get_certificate_data,
+)
 
 
 router = APIRouter(
@@ -58,3 +66,37 @@ def create_certificate(
         )
 
     return certificate
+
+
+@router.get(
+    "/{registration_id}",
+    response_model=CertificateDataResponse,
+)
+def get_certificate(
+    registration_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CertificateDataResponse:
+    try:
+        return get_certificate_data(
+            db=db,
+            registration_id=registration_id,
+            current_user=current_user,
+        )
+    except RegistrationNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration not found.",
+        )
+    except CertificateNotOwnedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this certificate.",
+        )
+    except CertificateNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Certificate not found.",
+        )
+
+

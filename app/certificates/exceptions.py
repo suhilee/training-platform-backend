@@ -8,3 +8,12 @@ class AttendanceNotValidatedError(Exception):
 
 class CertificateAlreadyIssuedError(Exception):
     pass
+
+
+#for certifcate rendering
+class CertificateNotFoundError(Exception):
+    pass
+
+
+class CertificateNotOwnedError(Exception):
+    pass
