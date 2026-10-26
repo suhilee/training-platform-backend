@@ -18,10 +18,12 @@ from app.certificates.exceptions import (
 from app.certificates.schemas import (
     CertificateResponse,
     CertificateDataResponse,
+    CertificateListItemResponse,
 )
 from app.certificates.service import (
     issue_certificate,
     get_certificate_data,
+    list_certificates_for_current_user,
 )
 
 
@@ -66,6 +68,20 @@ def create_certificate(
         )
 
     return certificate
+
+
+@router.get(
+    "/",
+    response_model=list[CertificateListItemResponse],
+)
+def list_certificates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[CertificateListItemResponse]:
+    return list_certificates_for_current_user(
+        db=db,
+        current_user=current_user,
+    )
 
 
 @router.get(

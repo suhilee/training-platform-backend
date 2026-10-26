@@ -21,3 +21,12 @@ class CertificateDataResponse(BaseModel):
     session_title: str
     session_date: date
     issued_at: datetime
+
+class CertificateListItemResponse(BaseModel):
+    registration_id: UUID
+    certificate_id: UUID
+    participant_first_name: str
+    participant_last_name: str
+    session_title: str
+    session_date: date
+    issued_at: datetime

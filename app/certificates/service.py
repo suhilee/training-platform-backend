@@ -9,7 +9,10 @@ from app.models.attendance import Attendance
 from app.models.user import User
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
-from app.certificates.schemas import CertificateDataResponse
+from app.certificates.schemas import (
+    CertificateDataResponse,
+    CertificateListItemResponse,
+)
 
 from app.certificates.exceptions import (
     RegistrationNotFoundError,
@@ -106,3 +109,43 @@ def get_certificate_data(
         session_date=training_session.date,
         issued_at=certificate.issued_at,
     )
+
+def list_certificates_for_current_user(
+    db: Session,
+    current_user: User,
+) -> list[CertificateListItemResponse]:
+    statement = (
+        select(Certificate, Registration, User, TrainingSession)
+        .join(
+            Registration,
+            Certificate.registration_id == Registration.id,
+        )
+        .join(
+            User,
+            Registration.user_id == User.id,
+        )
+        .join(
+            TrainingSession,
+            Registration.session_id == TrainingSession.id,
+        )
+        .where(
+            Registration.user_id == current_user.id,
+        )
+        .order_by(TrainingSession.date.desc())
+    )
+
+    rows = db.execute(statement).all()
+
+    return [
+        CertificateListItemResponse(
+            registration_id=registration.id,
+            certificate_id=certificate.id,
+            participant_first_name=participant.first_name,
+            participant_last_name=participant.last_name,
+            session_title=training_session.title,
+            session_date=training_session.date,
+            issued_at=certificate.issued_at,
+        )
+        for certificate, registration, participant, training_session in rows
+    ]
+
