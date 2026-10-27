@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,9 @@ from sqlalchemy.exc import IntegrityError
 def get_user_by_email(db: Session, email: str) -> User | None:
     statement = select(User).where(User.email == email)
     return db.execute(statement).scalar_one_or_none()
+
+def get_user_by_id(db: Session, user_id: UUID) -> User | None:
+    return db.get(User, user_id)
 
 def create_participant(db: Session, registration: RegisterRequest, age_category: AgeCategory) -> User:
     user = User(

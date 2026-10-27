@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import jwt
+from uuid import UUID
+
 from app.auth.age_categories import get_age_category_for_date_of_birth
 from app.auth.password import hash_password, verify_password
 from app.auth.schemas import (
@@ -12,10 +15,21 @@ from app.auth.schemas import (
     CurrentUserResponse,
     ProfileUpdateRequest,
     ChangePasswordRequest,
+    RefreshTokenRequest,
     )
 
-from app.auth.service import create_participant, get_user_by_email
-from app.auth.tokens import create_access_token
+from app.auth.service import (
+    create_participant,
+    get_user_by_email,
+    get_user_by_id,
+)
+
+from app.auth.tokens import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
+
 from app.db import get_db
 
 from app.auth.dependencies import get_current_user
@@ -40,7 +54,39 @@ def login(
             detail="Invalid email or password",
         )
 
-    return TokenResponse(access_token=create_access_token(user.id))
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+        )
+
+
+@router.post("/token/refresh", response_model=TokenResponse)
+def refresh_token(
+    request: RefreshTokenRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    authentication_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = decode_refresh_token(request.refresh_token)
+        user_id = UUID(payload["sub"])
+    except (jwt.InvalidTokenError, KeyError, ValueError):
+        raise authentication_error
+
+    user = get_user_by_id(db, user_id)
+
+    if user is None:
+        raise authentication_error
+
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
 
 @router.get("/me", response_model=CurrentUserResponse)
 def read_current_user(
@@ -158,6 +204,7 @@ def update_current_user(
         wilaya=current_user.wilaya,
         role=current_user.role,
     )
+
 
 @router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
 def change_password(
