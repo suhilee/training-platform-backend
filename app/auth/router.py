@@ -223,3 +223,8 @@ def change_password(
 
     current_user.password_hash = hash_password(password_change.new_password)
     db.commit()
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout() -> None:
+    return None
