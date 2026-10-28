@@ -1,9 +1,16 @@
 from uuid import UUID
 
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.age_category import AgeCategory
+
+from app.models.password_reset_token import PasswordResetToken
+from app.notifications.email import ConsoleEmailSender, EmailMessage
 
 from app.auth.schemas import RegisterRequest
 from app.models.user import User
@@ -11,6 +18,10 @@ from app.models.user import User
 from app.auth.password import hash_password
 
 from sqlalchemy.exc import IntegrityError
+
+
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 30
+
 
 def get_user_by_email(db: Session, email: str) -> User | None:
     statement = select(User).where(User.email == email)
@@ -41,3 +52,47 @@ def create_participant(db: Session, registration: RegisterRequest, age_category:
     db.refresh(user)
 
     return user
+
+
+def hash_reset_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def create_password_reset_token(
+    db: Session,
+    email: str,
+) -> None:
+    user = get_user_by_email(db, email)
+
+    if user is None:
+        return
+
+    raw_token = secrets.token_urlsafe(32)
+
+    password_reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=hash_reset_token(raw_token),
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
+    )
+
+    db.add(password_reset_token)
+    db.commit()
+
+    reset_link = (
+        "http://localhost:5173/reset-password"
+        f"?token={raw_token}"
+    )
+
+    email_sender = ConsoleEmailSender()
+    email_sender.send(
+        EmailMessage(
+            to_email=user.email,
+            subject="Reset your password",
+            body=(
+                "Use the following link to reset your password:\n"
+                f"{reset_link}\n\n"
+                "This link expires in 30 minutes."
+            ),
+        )
+    )

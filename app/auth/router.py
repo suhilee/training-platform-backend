@@ -16,12 +16,15 @@ from app.auth.schemas import (
     ProfileUpdateRequest,
     ChangePasswordRequest,
     RefreshTokenRequest,
+    PasswordResetRequestRequest,
+    PasswordResetRequestResponse,
     )
 
 from app.auth.service import (
     create_participant,
     get_user_by_email,
     get_user_by_id,
+    create_password_reset_token,
 )
 
 from app.auth.tokens import (
@@ -228,3 +231,21 @@ def change_password(
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout() -> None:
     return None
+
+
+@router.post(
+    "/password/reset-request",
+    response_model=PasswordResetRequestResponse,
+)
+def request_password_reset(
+    request: PasswordResetRequestRequest,
+    db: Session = Depends(get_db),
+) -> PasswordResetRequestResponse:
+    create_password_reset_token(db, request.email)
+
+    return PasswordResetRequestResponse(
+        message=(
+            "If the email address is registered, "
+            "a password reset link has been sent."
+        )
+    )
