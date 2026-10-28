@@ -11,7 +11,7 @@ from app.models.age_category import AgeCategory
 
 from app.models.password_reset_token import PasswordResetToken
 from app.notifications.email import ConsoleEmailSender, EmailMessage
-
+from app.auth.exceptions import InvalidPasswordResetTokenError
 from app.auth.schemas import RegisterRequest
 from app.models.user import User
 
@@ -96,3 +96,36 @@ def create_password_reset_token(
             ),
         )
     )
+
+def reset_password(
+        db: Session,
+        raw_token: str,
+        new_password: str,
+) -> None:
+    token_hash = hash_reset_token(raw_token)
+
+    password_reset_token = db.execute(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == token_hash
+        )
+    ).scalar_one_or_none()
+
+    if password_reset_token is None:
+        raise InvalidPasswordResetTokenError
+
+    if password_reset_token.used_at is not None:
+        raise InvalidPasswordResetTokenError
+
+    if password_reset_token.expires_at <= datetime.now(timezone.utc):
+        raise InvalidPasswordResetTokenError
+
+    user = db.get(User, password_reset_token.user_id)
+
+    if user is None:
+        raise InvalidPasswordResetTokenError
+
+    user.password_hash = hash_password(new_password)
+    password_reset_token.used_at = datetime.now(timezone.utc)
+
+    db.commit()
+    

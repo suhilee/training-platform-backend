@@ -31,7 +31,8 @@ def db_session() -> Generator[Session, None, None]:
             connection.execute(
                 text(
                     "TRUNCATE TABLE "
-                    "certificates,"
+                    "password_reset_tokens, "
+                    "certificates, "
                     "attendances, "
                     "registrations, "
                     "session_target_categories, "
