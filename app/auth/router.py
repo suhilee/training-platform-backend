@@ -18,6 +18,7 @@ from app.auth.schemas import (
     RefreshTokenRequest,
     PasswordResetRequestRequest,
     PasswordResetRequestResponse,
+    PasswordResetRequest,
     )
 
 from app.auth.service import (
@@ -25,7 +26,10 @@ from app.auth.service import (
     get_user_by_email,
     get_user_by_id,
     create_password_reset_token,
+    reset_password,
 )
+
+from app.auth.exceptions import InvalidPasswordResetTokenError
 
 from app.auth.tokens import (
     create_access_token,
@@ -249,3 +253,20 @@ def request_password_reset(
             "a password reset link has been sent."
         )
     )
+
+
+@router.post(
+    "/password/reset",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def reset_user_password(
+    request: PasswordResetRequest,
+    db: Session = Depends(get_db),
+) -> None:
+    try:
+        reset_password(db, request.token, request.new_password)
+    except InvalidPasswordResetTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
