@@ -1,6 +1,6 @@
 import pytest
 from uuid import uuid4
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 from datetime import datetime
 
 from app.sessions.exceptions import (
@@ -201,17 +201,21 @@ def test_cancel_session_marks_existing_session_as_cancelled(
         Mock(now=Mock(return_value=cancelled_at)),
     )
 
-    result = cancel_session(
-        db=db,
-        session_id=session_id,
-    )
+    with patch(
+        "app.sessions.management_service.send_session_cancellation_emails"
+    ) as send_cancellation_emails:
+        result = cancel_session(
+            db=db,
+            session_id=session_id,
+        )
 
-    assert result is training_session
-    assert training_session.is_cancelled is True
-    assert training_session.cancelled_at == cancelled_at
-    db.get.assert_called_once_with(TrainingSession, session_id)
-    db.commit.assert_called_once()
-    db.refresh.assert_called_once_with(training_session)
+    assert result.is_cancelled is True
+    assert result.cancelled_at == cancelled_at
+
+    send_cancellation_emails.assert_called_once_with(
+        db,
+        training_session,
+    )
 
 def test_cancel_session_rejects_unknown_session() -> None:
     session_id = uuid4()

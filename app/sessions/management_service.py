@@ -24,6 +24,7 @@ from app.models.age_category import AgeCategory
 from app.models.registration import Registration
 from app.models.user import User
 
+from app.sessions.notifications import send_session_cancellation_emails
 
 def create_session(
     db: Session,
@@ -102,6 +103,11 @@ def cancel_session(
     db.commit()
     db.refresh(training_session)
 
+    send_session_cancellation_emails(
+        db,
+        training_session,
+    )
+    
     return training_session
 
 def update_session(
