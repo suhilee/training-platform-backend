@@ -4,6 +4,8 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
+from app.core.config import settings
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -80,7 +82,7 @@ def create_password_reset_token(
     db.commit()
 
     reset_link = (
-        "http://localhost:5173/reset-password"
+        f"{settings.frontend_base_url}/reset-password"
         f"?token={raw_token}"
     )
 

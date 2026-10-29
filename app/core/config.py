@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     database_url: str
     test_database_url: str
 
+    # Frontend setting 
+    frontend_base_url: str = "http://localhost:5173"
+    
     # JWT settings
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
