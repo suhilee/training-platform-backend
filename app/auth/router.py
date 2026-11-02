@@ -19,6 +19,7 @@ from app.auth.schemas import (
     PasswordResetRequestRequest,
     PasswordResetRequestResponse,
     PasswordResetRequest,
+    VerifyEmailRequest,
     )
 
 from app.auth.service import (
@@ -27,9 +28,13 @@ from app.auth.service import (
     get_user_by_id,
     create_password_reset_token,
     reset_password,
+    verify_email,
 )
 
-from app.auth.exceptions import InvalidPasswordResetTokenError
+from app.auth.exceptions import (
+    InvalidPasswordResetTokenError,
+    InvalidVerificationTokenError,
+)
 
 from app.auth.tokens import (
     create_access_token,
@@ -160,6 +165,18 @@ def register(
         role=user.role,
     )
 
+@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
+def verify_new_email(
+    payload: VerifyEmailRequest,
+    db: Session = Depends(get_db),
+) -> None:
+    try:
+        verify_email(db, payload.token)
+    except InvalidVerificationTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token.",
+        )
 
 @router.patch("/me", response_model=CurrentUserResponse)
 def update_current_user(

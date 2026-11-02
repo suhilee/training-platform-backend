@@ -13,7 +13,11 @@ from app.models.age_category import AgeCategory
 
 from app.models.password_reset_token import PasswordResetToken
 from app.notifications.email import ConsoleEmailSender, EmailMessage
-from app.auth.exceptions import InvalidPasswordResetTokenError
+from app.auth.exceptions import (
+    InvalidPasswordResetTokenError,
+    InvalidVerificationTokenError,
+)
+
 from app.auth.schemas import RegisterRequest
 from app.models.user import User
 from app.models.email_verification_token import EmailVerificationToken
@@ -170,4 +174,38 @@ def reset_password(
     password_reset_token.used_at = datetime.now(timezone.utc)
 
     db.commit()
-    
+
+def verify_email(db: Session, raw_token: str) -> None:
+    token_hash = hash_email_verification_token(raw_token)
+
+    verification_token = (
+        db.query(EmailVerificationToken)
+        .filter(
+            EmailVerificationToken.token_hash == token_hash,
+        )
+        .first()
+    )
+
+    if verification_token is None:
+        raise InvalidVerificationTokenError()
+
+    now = datetime.now(timezone.utc)
+
+    if verification_token.used_at is not None:
+        raise InvalidVerificationTokenError()
+
+    if verification_token.expires_at <= now:
+        raise InvalidVerificationTokenError()
+
+    user = db.query(User).filter(User.id == verification_token.user_id).first()
+
+    if user is None:
+        raise InvalidVerificationTokenError()
+
+    if user.email_verified:
+        raise InvalidVerificationTokenError()
+
+    user.email_verified = True
+    verification_token.used_at = now
+
+    db.commit()

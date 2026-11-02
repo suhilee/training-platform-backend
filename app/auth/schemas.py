@@ -107,3 +107,6 @@ class PasswordResetRequest(BaseModel):
     @classmethod
     def validate_new_password(cls, value: str) -> str:
         return validate_password_strength(value)
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=1)
