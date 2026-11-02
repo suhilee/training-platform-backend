@@ -157,3 +157,33 @@ def test_cancellation_email_contains_session_details(
         assert "Python Fundamentals" in message.body
         assert "2030-01-15" in message.body
         assert "10:00:00" in message.body
+
+def test_cancellation_emails_continue_after_delivery_failure(
+    db_session: Session,
+) -> None:
+    training_session = create_cancellation_fixture(db_session)
+
+    with patch.object(
+        ConsoleEmailSender,
+        "send",
+        side_effect=[
+            RuntimeError("Email provider unavailable"),
+            None,
+        ],
+    ) as send_mock:
+        send_session_cancellation_emails(
+            db=db_session,
+            training_session=training_session,
+        )
+
+    assert send_mock.call_count == 2
+
+    recipients = {
+        call.args[0].to_email
+        for call in send_mock.call_args_list
+    }
+
+    assert recipients == {
+        "first-cancellation@example.com",
+        "second-cancellation@example.com",
+    }
