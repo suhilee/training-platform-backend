@@ -32,9 +32,6 @@ def test_auth_me_rejects_invalid_token() -> None:
     assert response.json() == {"detail": "Could not validate credentials"}
     assert response.headers["www-authenticate"] == "Bearer"
 
-
-
-
 def test_auth_me_returns_current_user() -> None:
     user_id = uuid4()
 
@@ -73,7 +70,7 @@ def test_auth_me_returns_current_user() -> None:
         }
 
 
-def test_auth_me_updates() -> None:
+def test_auth_me_updates(monkeypatch) -> None:
     user_id = uuid4()
 
     fake_user = SimpleNamespace(
@@ -86,10 +83,29 @@ def test_auth_me_updates() -> None:
         age_category_id=4,
         wilaya="Algiers",
         role="PARTICIPANT",
+        email_verified=True,
     )
+
+    verification_emails = []
+
+    def fake_send_verification_email(db, user):
+        verification_emails.append(user.email)
+
+    monkeypatch.setattr(
+        "app.auth.router.send_verification_email",
+        fake_send_verification_email,
+    )
+
     class FakeResult:
         def scalar_one_or_none(self) -> None:
             return None
+
+    class FakeQuery:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def update(self, values, **kwargs):
+            return 1
 
     class FakeDb:
         def commit(self) -> None:
@@ -100,6 +116,9 @@ def test_auth_me_updates() -> None:
 
         def refresh(self, instance: object) -> None:
             pass
+
+        def query(self, model: object) -> FakeQuery:
+            return FakeQuery()
 
     def override_get_current_user() -> SimpleNamespace:
         return fake_user
@@ -132,6 +151,9 @@ def test_auth_me_updates() -> None:
     assert fake_user.phone_number == "0660000000"
     assert fake_user.wilaya == "Algiers"
     assert fake_user.last_name == "Participant"
+
+    assert fake_user.email_verified is False
+    assert verification_emails == ["updated@example.com"]
 
 def test_auth_me_rejects_extra_profile_fields() -> None:
     fake_user = SimpleNamespace(

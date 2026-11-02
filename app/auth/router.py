@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -32,6 +34,7 @@ from app.auth.service import (
     reset_password,
     verify_email,
     resend_verification_email,
+    send_verification_email,
 )
 
 from app.auth.exceptions import (
@@ -49,6 +52,7 @@ from app.db import get_db
 
 from app.auth.dependencies import get_current_user
 from app.models.user import User
+from app.models.email_verification_token import EmailVerificationToken
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -211,7 +215,12 @@ def update_current_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CurrentUserResponse:
-    if profile_update.email is not None:
+    email_changed = (
+        profile_update.email is not None
+        and profile_update.email != current_user.email
+    )
+
+    if email_changed:
         existing_user = get_user_by_email(db, profile_update.email)
 
         if existing_user is not None and existing_user.id != current_user.id:
@@ -241,8 +250,22 @@ def update_current_user(
     ).items():
         setattr(current_user, field, value)
 
+    if email_changed:
+        current_user.email_verified = False
+
+        db.query(EmailVerificationToken).filter(
+            EmailVerificationToken.user_id == current_user.id,
+            EmailVerificationToken.used_at.is_(None),
+        ).update(
+            {"used_at": datetime.now(timezone.utc)},
+            synchronize_session=False,
+        )
+
     db.commit()
     db.refresh(current_user)
+
+    if email_changed:
+        send_verification_email(db, current_user)
 
     return CurrentUserResponse(
         id=current_user.id,
