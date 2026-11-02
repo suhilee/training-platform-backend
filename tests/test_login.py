@@ -14,6 +14,7 @@ def test_login_returns_access_token_for_valid_credentials(monkeypatch) -> None:
         id=uuid4(),
         email="participant@example.com",
         password_hash=hash_password(password),
+        email_verified=True,
     )
 
     def fake_get_user_by_email(db, email: str):
@@ -80,3 +81,29 @@ def test_login_rejects_incorrect_password(monkeypatch) -> None:
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid email or password"}
+
+
+def test_login_rejects_unverified_email(monkeypatch) -> None:
+    password = "correct-password"
+    user = SimpleNamespace(
+        id=uuid4(),
+        email="unverified@example.com",
+        password_hash=hash_password(password),
+        email_verified=False,
+    )
+
+    monkeypatch.setattr(
+        "app.auth.router.get_user_by_email",
+        lambda db, email: user,
+    )
+
+    client = TestClient(app)
+    response = client.post(
+        "/auth/login",
+        json={"email": user.email, "password": password},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Email address is not verified."
+    }
