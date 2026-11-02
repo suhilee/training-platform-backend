@@ -2,7 +2,7 @@ from datetime import date
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, Enum, ForeignKey, String
+from sqlalchemy import Date, Enum, ForeignKey, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,4 +40,9 @@ class User(Base):
         String(255),
         unique=True,
         nullable=True,
+    )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
     )
