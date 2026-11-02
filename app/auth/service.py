@@ -16,6 +16,7 @@ from app.notifications.email import ConsoleEmailSender, EmailMessage
 from app.auth.exceptions import InvalidPasswordResetTokenError
 from app.auth.schemas import RegisterRequest
 from app.models.user import User
+from app.models.email_verification_token import EmailVerificationToken
 
 from app.auth.password import hash_password
 
@@ -23,7 +24,11 @@ from sqlalchemy.exc import IntegrityError
 
 
 PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 30
+EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS = 24
 
+
+def hash_email_verification_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 def get_user_by_email(db: Session, email: str) -> User | None:
     statement = select(User).where(User.email == email)
@@ -42,6 +47,7 @@ def create_participant(db: Session, registration: RegisterRequest, age_category:
     age_category_id=age_category.id,
     wilaya=registration.wilaya,
     password_hash=hash_password(registration.password),
+    email_verified=False,
     )
 
     db.add(user)
@@ -53,8 +59,42 @@ def create_participant(db: Session, registration: RegisterRequest, age_category:
 
     db.refresh(user)
 
+    raw_token = secrets.token_urlsafe(32)
+
+    verification_token = EmailVerificationToken(
+        user_id=user.id,
+        token_hash=hash_email_verification_token(raw_token),
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(hours=EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS),
+    )
+
+    db.add(verification_token)
+    db.commit()
+
+    verification_link = (
+        f"{settings.frontend_base_url}/verify-email"
+        f"?token={raw_token}"
+    )
+
+    email_sender = ConsoleEmailSender()
+    email_sender.send(
+        EmailMessage(
+            to_email=user.email,
+            subject="Verify your email address",
+            body=(
+                f"Hello {user.first_name},\n\n"
+                "Please verify your email address by opening "
+                "the following link:\n"
+                f"{verification_link}\n\n"
+                "This link expires in 24 hours."
+            ),
+        )
+    )
+
     return user
 
+def hash_email_verification_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 def hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()

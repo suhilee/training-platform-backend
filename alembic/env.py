@@ -15,6 +15,7 @@ from app.models.registration import Registration
 from app.models.attendance import Attendance
 from app.models.certificate import Certificate
 from app.models.password_reset_token import PasswordResetToken
+from app.models.email_verification_token import EmailVerificationToken
 
 from app.models.base import Base
 
