@@ -110,3 +110,9 @@ class PasswordResetRequest(BaseModel):
 
 class VerifyEmailRequest(BaseModel):
     token: str = Field(min_length=1)
+
+class ResendVerificationEmailRequest(BaseModel):
+    email: EmailStr
+
+class ResendVerificationEmailResponse(BaseModel):
+    message: str

@@ -29,7 +29,7 @@ from sqlalchemy.exc import IntegrityError
 
 PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 30
 EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS = 24
-
+EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60
 
 def hash_email_verification_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
@@ -41,28 +41,7 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 def get_user_by_id(db: Session, user_id: UUID) -> User | None:
     return db.get(User, user_id)
 
-def create_participant(db: Session, registration: RegisterRequest, age_category: AgeCategory) -> User:
-    user = User(
-    first_name=registration.first_name,
-    last_name=registration.last_name,
-    email=registration.email,
-    phone_number=registration.phone_number,
-    date_of_birth=registration.date_of_birth,
-    age_category_id=age_category.id,
-    wilaya=registration.wilaya,
-    password_hash=hash_password(registration.password),
-    email_verified=False,
-    )
-
-    db.add(user)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise
-
-    db.refresh(user)
-
+def send_verification_email(db: Session, user: User) -> None:
     raw_token = secrets.token_urlsafe(32)
 
     verification_token = EmailVerificationToken(
@@ -95,6 +74,67 @@ def create_participant(db: Session, registration: RegisterRequest, age_category:
         )
     )
 
+def resend_verification_email(db: Session, email: str) -> None:
+    user = get_user_by_email(db, email)
+
+    if user is None or user.email_verified:
+        return
+
+    latest_token = (
+        db.query(EmailVerificationToken)
+        .filter(
+            EmailVerificationToken.user_id == user.id,
+        )
+        .order_by(EmailVerificationToken.created_at.desc())
+        .first()
+    )
+
+    now = datetime.now(timezone.utc)
+
+    if latest_token is not None:
+        cooldown_end = latest_token.created_at + timedelta(
+            seconds=EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
+        )
+
+        if now < cooldown_end:
+            return
+
+    db.query(EmailVerificationToken).filter(
+        EmailVerificationToken.user_id == user.id,
+        EmailVerificationToken.used_at.is_(None),
+    ).update(
+        {"used_at": now},
+        synchronize_session=False,
+    )
+
+    db.commit()
+
+    send_verification_email(db, user)
+
+def create_participant(db: Session, registration: RegisterRequest, age_category: AgeCategory) -> User:
+    user = User(
+    first_name=registration.first_name,
+    last_name=registration.last_name,
+    email=registration.email,
+    phone_number=registration.phone_number,
+    date_of_birth=registration.date_of_birth,
+    age_category_id=age_category.id,
+    wilaya=registration.wilaya,
+    password_hash=hash_password(registration.password),
+    email_verified=False,
+    )
+
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
+
+    db.refresh(user)
+
+    send_verification_email(db, user)
+
     return user
 
 def hash_email_verification_token(raw_token: str) -> str:
@@ -102,7 +142,6 @@ def hash_email_verification_token(raw_token: str) -> str:
 
 def hash_reset_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-
 
 def create_password_reset_token(
     db: Session,

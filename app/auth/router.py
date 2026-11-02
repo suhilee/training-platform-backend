@@ -20,6 +20,8 @@ from app.auth.schemas import (
     PasswordResetRequestResponse,
     PasswordResetRequest,
     VerifyEmailRequest,
+    ResendVerificationEmailRequest,
+    ResendVerificationEmailResponse,
     )
 
 from app.auth.service import (
@@ -29,6 +31,7 @@ from app.auth.service import (
     create_password_reset_token,
     reset_password,
     verify_email,
+    resend_verification_email,
 )
 
 from app.auth.exceptions import (
@@ -183,6 +186,24 @@ def verify_new_email(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired verification token.",
         )
+
+@router.post(
+    "/resend-verification-email",
+    response_model=ResendVerificationEmailResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def resend_verification_email_route(
+    request: ResendVerificationEmailRequest,
+    db: Session = Depends(get_db),
+) -> ResendVerificationEmailResponse:
+    resend_verification_email(db, request.email)
+
+    return ResendVerificationEmailResponse(
+        message=(
+            "If this email is registered and unverified, "
+            "a new verification link has been sent."
+        )
+    )
 
 @router.patch("/me", response_model=CurrentUserResponse)
 def update_current_user(
