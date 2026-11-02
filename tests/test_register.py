@@ -52,7 +52,7 @@ def test_register_creates_participant(monkeypatch) -> None:
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
             "wilaya": "Alger",
-            "password": "correct-password",
+            "password": "StrongPassword123",
         },
     )
 
@@ -88,7 +88,7 @@ def test_register_fails_if_email_already_registered(monkeypatch) -> None:
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
             "wilaya": "Alger",
-            "password": "correct-password",
+            "password": "StrongPassword123",
         },
     )
 
@@ -118,7 +118,7 @@ def test_register_fails_if_age_not_eligible(monkeypatch) -> None:
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
             "wilaya": "Alger",
-            "password": "correct-password",
+            "password": "StrongPassword123",
         },
     )
 
@@ -162,7 +162,7 @@ def test_register_converts_duplicate_email_insert_to_conflict(monkeypatch) -> No
             "phone_number": "0550123456",
             "date_of_birth": "2000-01-01",
             "wilaya": "Alger",
-            "password": "correct-password",
+            "password": "StrongPassword123",
         },
     )
 

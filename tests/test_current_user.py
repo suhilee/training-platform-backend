@@ -369,7 +369,7 @@ def test_auth_me_changes_password() -> None:
             "/auth/me/password",
             json={
                 "current_password": "old_password",
-                "new_password": "new_password",
+                "new_password": "StrongPassword123",
             },
         )
     finally:
@@ -377,7 +377,7 @@ def test_auth_me_changes_password() -> None:
 
     assert response.status_code == 204
     assert fake_db.committed is True
-    assert verify_password("new_password", fake_user.password_hash)
+    assert verify_password("StrongPassword123", fake_user.password_hash)
     assert not verify_password("old_password", fake_user.password_hash)
 
 def test_auth_me_rejects_incorrect_current_password() -> None:
@@ -421,7 +421,7 @@ def test_auth_me_rejects_incorrect_current_password() -> None:
             "/auth/me/password",
             json={
                 "current_password": "incorrect_password",
-                "new_password": "new_password",
+                "new_password": "StrongPassword123",
             },
         )
     finally:
