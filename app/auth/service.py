@@ -12,7 +12,12 @@ from sqlalchemy.orm import Session
 from app.models.age_category import AgeCategory
 
 from app.models.password_reset_token import PasswordResetToken
-from app.notifications.email import ConsoleEmailSender, EmailMessage
+from app.notifications.email import (
+    ConsoleEmailSender,
+    EmailMessage,
+    send_email_safely,
+)
+
 from app.auth.exceptions import (
     InvalidPasswordResetTokenError,
     InvalidVerificationTokenError,
@@ -60,7 +65,9 @@ def send_verification_email(db: Session, user: User) -> None:
     )
 
     email_sender = ConsoleEmailSender()
-    email_sender.send(
+
+    send_email_safely(
+        email_sender,
         EmailMessage(
             to_email=user.email,
             subject="Verify your email address",
@@ -71,7 +78,7 @@ def send_verification_email(db: Session, user: User) -> None:
                 f"{verification_link}\n\n"
                 "This link expires in 24 hours."
             ),
-        )
+        ),
     )
 
 def resend_verification_email(db: Session, email: str) -> None:
@@ -167,7 +174,9 @@ def create_password_reset_token(
     )
 
     email_sender = ConsoleEmailSender()
-    email_sender.send(
+
+    send_email_safely(
+        email_sender,
         EmailMessage(
             to_email=user.email,
             subject="Reset your password",
@@ -176,7 +185,7 @@ def create_password_reset_token(
                 f"{reset_link}\n\n"
                 "This link expires in 30 minutes."
             ),
-        )
+        ),
     )
 
 def reset_password(

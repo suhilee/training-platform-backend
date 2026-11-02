@@ -5,7 +5,11 @@ from app.core.config import settings
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
 from app.models.user import User
-from app.notifications.email import ConsoleEmailSender, EmailMessage
+from app.notifications.email import (
+    ConsoleEmailSender,
+    EmailMessage,
+    send_email_safely,
+)
 
 
 def send_session_posted_emails(
@@ -30,7 +34,8 @@ def send_session_posted_emails(
     email_sender = ConsoleEmailSender()
 
     for user in users:
-        email_sender.send(
+        send_email_safely(
+            email_sender,
             EmailMessage(
                 to_email=user.email,
                 subject=(
@@ -75,7 +80,8 @@ def send_session_cancellation_emails(
     email_sender = ConsoleEmailSender()
 
     for user in registered_users:
-        email_sender.send(
+        send_email_safely(
+            email_sender,
             EmailMessage(
                 to_email=user.email,
                 subject=f"Session cancelled: {training_session.title}",
