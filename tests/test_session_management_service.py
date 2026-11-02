@@ -85,7 +85,18 @@ def test_create_session_uses_existing_training_type() -> None:
     db = Mock()
     db.get.return_value = existing_training_type
 
-    result = create_session(db=db, request=request)
+    with patch(
+        "app.sessions.management_service.send_session_posted_emails"
+    ) as send_posted_emails:
+        result = create_session(
+            db=db,
+            request=request,
+        )
+
+    send_posted_emails.assert_called_once_with(
+        db,
+        result,
+    )
 
     assert isinstance(result, TrainingSession)
     assert result.training_type is existing_training_type
@@ -127,7 +138,18 @@ def test_create_session_creates_new_training_type() -> None:
 
     db = Mock()
 
-    result = create_session(db=db, request=request)
+    with patch(
+        "app.sessions.management_service.send_session_posted_emails"
+    ) as send_posted_emails:
+        result = create_session(
+            db=db,
+            request=request,
+        )
+
+    send_posted_emails.assert_called_once_with(
+        db,
+        result,
+    )
 
     assert isinstance(result, TrainingSession)
     assert result.training_type.training_code == "AI-INTRO-001"
