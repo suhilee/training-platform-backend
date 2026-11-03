@@ -36,6 +36,7 @@ def db_session() -> Generator[Session, None, None]:
                     "attendances, "
                     "registrations, "
                     "session_target_categories, "
+                    "email_verification_tokens, "
                     "sessions, "
                     "users, "
                     "training_types, "
