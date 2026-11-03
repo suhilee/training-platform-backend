@@ -5,7 +5,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.user import UserRole
+from app.models.user import UserRole, User
+from app.db import get_db
 
 from sqlalchemy.exc import IntegrityError
 
@@ -168,3 +169,66 @@ def test_register_converts_duplicate_email_insert_to_conflict(monkeypatch) -> No
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Email is already registered"}
+
+def test_register_succeeds_when_verification_email_delivery_fails(
+    monkeypatch,
+) -> None:
+    user_id = uuid4()
+
+    fake_age_category = SimpleNamespace(id=5)
+
+    fake_user = SimpleNamespace(
+        id=user_id,
+        first_name="Souhil",
+        last_name="Bensaid",
+        email="email-failure@example.com",
+        phone_number="0550123456",
+        date_of_birth=date(2000, 1, 1),
+        age_category_id=5,
+        wilaya="Alger",
+        role=UserRole.PARTICIPANT,
+    )
+
+    monkeypatch.setattr(
+        "app.auth.router.get_user_by_email",
+        lambda db, email: None,
+    )
+
+    monkeypatch.setattr(
+        "app.auth.router.get_age_category_for_date_of_birth",
+        lambda db, date_of_birth: fake_age_category,
+    )
+
+    monkeypatch.setattr(
+        "app.auth.router.create_participant",
+        lambda db, registration, age_category: fake_user,
+    )
+
+    def failing_send_verification_email(db, user):
+        raise RuntimeError("Email provider unavailable")
+
+    monkeypatch.setattr(
+        "app.auth.router.send_verification_email",
+        failing_send_verification_email,
+    )
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "first_name": "Souhil",
+            "last_name": "Bensaid",
+            "email": "email-failure@example.com",
+            "phone_number": "0550123456",
+            "date_of_birth": "2000-01-01",
+            "wilaya": "Alger",
+            "password": "StrongPassword123",
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+    assert body["id"] == str(user_id)
+    assert body["email"] == "email-failure@example.com"
