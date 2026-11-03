@@ -181,3 +181,34 @@ def test_posted_email_does_not_contain_zoom_url(
 
     for message in messages:
         assert training_session.zoom_url not in message.body
+
+
+def test_posted_emails_continue_after_delivery_failure(
+        db_session: Session,
+) -> None:
+    training_session = create_session_posted_fixture(db_session)
+
+    with patch.object(
+        ConsoleEmailSender,
+        "send",
+        side_effect=[
+            RuntimeError("Email provider unavailable"),
+            None,
+        ],
+    ) as send_mock:
+        send_session_posted_emails(
+            db=db_session,
+            training_session= training_session,
+        )
+
+    assert send_mock.call_count == 2
+
+    recipients = {
+        call.args[0].to_email
+        for call in send_mock.call_args_list
+    }
+
+    assert recipients == {
+        "first-posted@example.com",
+        "second-posted@example.com",
+    }
