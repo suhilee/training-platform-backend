@@ -21,4 +21,9 @@ dev = [
   "pytest",
   "httpx2",
   "ruff",
+  "requests",
+  "locust",
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
