@@ -51,4 +51,3 @@ class TrainingPlatformParticipant(HttpUser):
         self.client.get(
             f"/sessions/{self.session_id}"
         )
-

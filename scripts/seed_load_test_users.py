@@ -1,21 +1,21 @@
-import os
+from datetime import date
 
-from app.db import SessionLocal
 from app.auth.password import hash_password
+from app.db import SessionLocal
 from app.models.age_category import AgeCategory
 from app.models.user import User, UserRole
+
 
 NUMBER_OF_USERS = 100
 PASSWORD = "StrongPassword123"
 
 
-def main():
+def main() -> None:
     db = SessionLocal()
 
     try:
         age_category = (
             db.query(AgeCategory)
-            .filter(AgeCategory.code == "AD")
             .first()
         )
 
@@ -31,6 +31,8 @@ def main():
             db.refresh(age_category)
 
             print("Seeded age category: AD")
+
+        created_count = 0
 
         for number in range(1, NUMBER_OF_USERS + 1):
             email = f"loadtest{number}@example.com"
@@ -50,7 +52,7 @@ def main():
                 last_name=f"Test {number}",
                 email=email,
                 phone_number=f"055000{number:04d}",
-                date_of_birth="2000-01-01",
+                date_of_birth=date(2000, 1, 1),
                 wilaya="Alger",
                 password_hash=hash_password(PASSWORD),
                 age_category_id=age_category.id,
@@ -59,9 +61,12 @@ def main():
             )
 
             db.add(user)
+            created_count += 1
 
         db.commit()
-        print(f"Seeded up to {NUMBER_OF_USERS} verified users.")
+
+        print(f"Created {created_count} load-test users.")
+        print(f"Using age category: {age_category.code}")
 
     finally:
         db.close()
