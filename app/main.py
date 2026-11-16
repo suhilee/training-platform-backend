@@ -1,5 +1,13 @@
 from fastapi import FastAPI
 
+import uuid
+import logging
+from app.core.request_context import (
+    create_request_id,
+    reset_request_context,
+    set_request_context,
+)
+
 from app.auth.router import router as auth_router
 from app.registrations.router import router as registrations_router
 from app.sessions.router import router as sessions_router
@@ -9,15 +17,48 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="7.77 Training Platform API")
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5174",
+        "http://localhost:5173", "http://localhost:4173",
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE", "PUT", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+logger = logging.getLogger("uvicorn.error")
+
+
+@app.middleware("http")
+async def add_request_context(request, call_next):
+    request_id = create_request_id()
+    endpoint = f"{request.method} {request.url.path}"
+
+    request_id_token, endpoint_token = set_request_context(
+        request_id,
+        endpoint,
+    )
+
+    try:
+        response = await call_next(request)
+
+    except Exception:
+        logger.exception(
+            "Unhandled exception | request_id=%s | endpoint=%s",
+            request_id,
+            endpoint,
+        )
+        raise
+
+    finally:
+        reset_request_context(
+            request_id_token,
+            endpoint_token,
+        )
+
+    return response
 
 app.include_router(auth_router)
 app.include_router(training_types_router)
