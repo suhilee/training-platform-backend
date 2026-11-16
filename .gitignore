@@ -28,3 +28,9 @@ htmlcov/
 
 # Local downloaded installers
 vscode.deb
+
+# Logs
+logs/
+
+# Load stats
+*.csv
