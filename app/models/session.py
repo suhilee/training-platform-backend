@@ -91,6 +91,21 @@ class Session(Base):
     nullable=False,
     )
 
+    prerequisites: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        )
+
+    instructor_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    instructor_phone: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+
     is_cancelled: Mapped[bool] = mapped_column(
     Boolean,
     nullable=False,

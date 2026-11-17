@@ -9,11 +9,12 @@ class RegistrationResponse(BaseModel):
     session_id: UUID
     registered_at: datetime
 
-
 class SessionListItemResponse(BaseModel):
     id: UUID
     title: str
     description: str
+    training_type_description: str | None
+    prerequisites: str | None
     date: date
     start_time: time
     duration_minutes: int

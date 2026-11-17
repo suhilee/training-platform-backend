@@ -67,6 +67,9 @@ def create_session(
         max_capacity=request.max_capacity,
         zoom_url=request.zoom_url,
         instructor_name=request.instructor_name,
+        prerequisites=request.prerequisites,
+        instructor_email=request.instructor_email,
+        instructor_phone=request.instructor_phone,
     )
 
     for age_category_id in request.target_age_category_ids:
@@ -185,6 +188,9 @@ def update_session(
     training_session.max_capacity = request.max_capacity
     training_session.zoom_url = request.zoom_url
     training_session.instructor_name = request.instructor_name
+    training_session.prerequisites = request.prerequisites
+    training_session.instructor_email = request.instructor_email
+    training_session.instructor_phone = request.instructor_phone
 
     db.commit()
     db.refresh(training_session)

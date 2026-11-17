@@ -33,6 +33,10 @@ def test_list_sessions_returns_eligible_sessions_without_zoom_url(
         instructor_name="Jane Doe",
         is_cancelled=False,
         zoom_url="https://secret.example.com/meeting",
+        training_type=SimpleNamespace(
+            description="Introduction to artificial intelligence",
+        ),
+        prerequisites=None,
     )
 
     service_mock = Mock(return_value=[training_session])
@@ -88,6 +92,10 @@ def test_list_sessions_orders_open_sessions_by_earliest_start_time(
         instructor_name="Jane Doe",
         is_cancelled=False,
         zoom_url="https://secret.example.com/later",
+        training_type=SimpleNamespace(
+            description="Introduction to artificial intelligence",
+        ),
+        prerequisites=None,
     )
 
     earlier_session = SimpleNamespace(
@@ -102,6 +110,10 @@ def test_list_sessions_orders_open_sessions_by_earliest_start_time(
         instructor_name="Jane Doe",
         is_cancelled=False,
         zoom_url="https://secret.example.com/earlier",
+        training_type=SimpleNamespace(
+            description="Introduction to artificial intelligence",
+        ),
+        prerequisites=None,
     )
 
     service_mock = Mock(
@@ -161,6 +173,10 @@ def test_get_session_detail_returns_eligible_session_without_zoom_url(
         instructor_name="Jane Doe",
         is_cancelled=False,
         zoom_url="https://secret.example.com/meeting",
+        training_type=SimpleNamespace(
+            description="Introduction to artificial intelligence",
+        ),
+        prerequisites=None,
     )
 
     service_mock = Mock(return_value=training_session)

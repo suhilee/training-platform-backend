@@ -29,6 +29,9 @@ def test_session_manager_can_create_session(monkeypatch) -> None:
         training_id=training_id,
         title="Introduction to AI",
         description="A beginner session.",
+        prerequisites=None,
+        instructor_email=None,
+        instructor_phone=None,
         date=date(2030, 1, 1),
         start_time=time(10, 0),
         duration_minutes=60,
@@ -59,6 +62,9 @@ def test_session_manager_can_create_session(monkeypatch) -> None:
                 "training_id": str(training_id),
                 "title": "Introduction to AI",
                 "description": "A beginner session.",
+                "prerequisites": None,
+                "instructor_email": None,
+                "instructor_phone": None,
                 "date": "2030-01-01",
                 "start_time": "10:00:00",
                 "duration_minutes": 60,
@@ -441,11 +447,18 @@ def test_session_manager_can_update_session(
         training_id=uuid4(),
         title="Updated AI Session",
         description="An updated beginner session.",
+        prerequisites=None,
+        instructor_email=None,
+        instructor_phone=None,
         date=date(2030, 1, 2),
         start_time=time(11, 0),
         duration_minutes=90,
         max_capacity=20,
-        registered_count=10,
+        target_categories=[
+            SimpleNamespace(age_category_id=3),
+            SimpleNamespace(age_category_id=4)
+        ],
+        zoom_url="https://secret.example.com/updated-meeting",
         instructor_name="John Doe",
         is_cancelled=False,
     )
@@ -484,8 +497,7 @@ def test_session_manager_can_update_session(
     assert response.status_code == 200
     assert response.json()["id"] == str(session_id)
     assert response.json()["title"] == "Updated AI Session"
-    assert response.json()["registered_count"] == 10
-    assert "zoom_url" not in response.json()
+    assert "zoom_url" in response.json()
 
     service_mock.assert_called_once()
 
@@ -596,6 +608,9 @@ def test_session_manager_can_get_management_session_detail(
         training_id=training_id,
         title="Introduction to AI",
         description="A beginner-friendly AI session.",
+        prerequisites=None,
+        instructor_email=None,
+        instructor_phone=None,
         date=date(2030, 1, 2),
         start_time=time(10, 0),
         duration_minutes=90,

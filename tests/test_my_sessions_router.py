@@ -33,6 +33,10 @@ def test_list_my_sessions_returns_participant_registrations(
         instructor_name="Jane Doe",
         is_cancelled=False,
         zoom_url="https://secret.example.com/meeting",
+        training_type=SimpleNamespace(
+            description="Introduction to artificial intelligence",
+        ),
+        prerequisites=None,
     )
 
     service_mock = Mock(

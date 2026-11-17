@@ -21,6 +21,7 @@ from app.sessions.schemas import (
     SessionCreateResponse,
     SessionUpdateRequest,
     SessionManagementDetailResponse,
+    SessionUpdateResponse,
 )
 
 from app.sessions.exceptions import (
@@ -99,6 +100,10 @@ def list_eligible_sessions(
             id=training_session.id,
             title=training_session.title,
             description=training_session.description,
+            training_type_description=(
+                training_session.training_type.description
+            ),
+            prerequisites=training_session.prerequisites,
             date=training_session.date,
             start_time=training_session.start_time,
             duration_minutes=training_session.duration_minutes,
@@ -141,6 +146,10 @@ def list_my_sessions(
             id=training_session.id,
             title=training_session.title,
             description=training_session.description,
+            training_type_description=(
+                training_session.training_type.description
+            ),
+            prerequisites=training_session.prerequisites,
             date=training_session.date,
             start_time=training_session.start_time,
             duration_minutes=training_session.duration_minutes,
@@ -185,6 +194,10 @@ def get_eligible_session_detail(
         id=training_session.id,
         title=training_session.title,
         description=training_session.description,
+        training_type_description=(
+            training_session.training_type.description
+        ),
+        prerequisites=training_session.prerequisites,
         date=training_session.date,
         start_time=training_session.start_time,
         duration_minutes=training_session.duration_minutes,
@@ -337,6 +350,9 @@ def create_training_session(
         registered_count=created_session.registered_count,
         instructor_name=created_session.instructor_name,
         is_cancelled=created_session.is_cancelled,
+        prerequisites=created_session.prerequisites,
+        instructor_email=created_session.instructor_email,
+        instructor_phone=created_session.instructor_phone,
     )
 
 
@@ -369,7 +385,7 @@ def cancel_training_session(
 
 @router.put(
     "/{session_id}",
-    response_model=SessionListItemResponse,
+    response_model=SessionUpdateResponse,
 )
 def update_training_session(
     session_id: UUID,
@@ -378,7 +394,7 @@ def update_training_session(
     current_user: User = Depends(
         require_role(UserRole.SESSION_MANAGER),
     ),
-) -> SessionListItemResponse:
+) -> SessionUpdateResponse:
     try:
         updated_session = update_session(
             db=db,
@@ -402,21 +418,25 @@ def update_training_session(
             ),
         )
 
-    return SessionListItemResponse(
+    return SessionUpdateResponse(
         id=updated_session.id,
+        training_id=updated_session.training_id,
         title=updated_session.title,
         description=updated_session.description,
         date=updated_session.date,
         start_time=updated_session.start_time,
         duration_minutes=updated_session.duration_minutes,
         max_capacity=updated_session.max_capacity,
-        registered_count=updated_session.registered_count,
         instructor_name=updated_session.instructor_name,
         is_cancelled=updated_session.is_cancelled,
-        status=get_session_status(
-            updated_session,
-            datetime.now(),
-        ),
+        prerequisites=updated_session.prerequisites,
+        instructor_email=updated_session.instructor_email,
+        instructor_phone=updated_session.instructor_phone,
+        zoom_url=updated_session.zoom_url,
+        target_age_category_ids=[
+            target_category.age_category_id
+            for target_category in updated_session.target_categories
+        ],
     )
 
 
@@ -465,4 +485,7 @@ def get_management_session_detail(
             target_category.age_category_id
             for target_category in training_session.target_categories
         ],
+        prerequisites=training_session.prerequisites,
+        instructor_email=training_session.instructor_email,
+        instructor_phone=training_session.instructor_phone,
     )

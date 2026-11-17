@@ -1,14 +1,13 @@
 from datetime import date, time
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, EmailStr
 
 
 class NewTrainingTypeInput(BaseModel):
     training_code: str = Field(min_length=1, max_length=50)
     name: str = Field(min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
-
 
 class SessionCreateRequest(BaseModel):
     training_id: UUID | None = None
@@ -23,6 +22,9 @@ class SessionCreateRequest(BaseModel):
     zoom_url: str = Field(min_length=1, max_length=2_000)
     instructor_name: str = Field(min_length=1, max_length=200)
     target_age_category_ids: list[int] = Field(min_length=1)
+    prerequisites: str | None = Field(default=None, max_length=2_000)
+    instructor_email: EmailStr | None = None
+    instructor_phone: str | None = Field(default=None, max_length=30)
 
     @model_validator(mode="after")
     def validate_training_type_choice(self) -> "SessionCreateRequest":
@@ -49,7 +51,6 @@ class SessionCreateRequest(BaseModel):
 
         return self
 
-
 class SessionCreateResponse(BaseModel):
     id: UUID
     training_id: UUID
@@ -62,6 +63,9 @@ class SessionCreateResponse(BaseModel):
     registered_count: int
     instructor_name: str
     is_cancelled: bool
+    prerequisites: str | None
+    instructor_email: EmailStr | None
+    instructor_phone: str | None
 
 class SessionUpdateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
@@ -73,6 +77,9 @@ class SessionUpdateRequest(BaseModel):
     zoom_url: str = Field(min_length=1, max_length=2_000)
     instructor_name: str = Field(min_length=1, max_length=200)
     target_age_category_ids: list[int] = Field(min_length=1)
+    prerequisites: str | None = Field(default=None, max_length=2_000)
+    instructor_email: EmailStr | None = None
+    instructor_phone: str | None = Field(default=None, max_length=30)
 
     @model_validator(mode="after")
     def validate_unique_target_age_categories(
@@ -86,6 +93,23 @@ class SessionUpdateRequest(BaseModel):
             )
 
         return self
+
+class SessionUpdateResponse(BaseModel):
+    id: UUID
+    training_id: UUID
+    title: str
+    description: str
+    date: date
+    start_time: time
+    duration_minutes: int
+    max_capacity: int
+    zoom_url: str
+    instructor_name: str
+    prerequisites: str | None
+    instructor_email: EmailStr | None
+    instructor_phone: str | None
+    is_cancelled: bool
+    target_age_category_ids: list[int]
 
 class SessionManagementDetailResponse(BaseModel):
     id: UUID
@@ -103,3 +127,6 @@ class SessionManagementDetailResponse(BaseModel):
     instructor_name: str
     is_cancelled: bool
     target_age_category_ids: list[int]
+    prerequisites: str | None
+    instructor_email: EmailStr | None
+    instructor_phone: str | None
