@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 from sqlalchemy import select, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
@@ -17,6 +17,7 @@ from app.sessions.exceptions import (
 from app.sessions.schemas import (
     SessionCreateRequest,
     SessionUpdateRequest,
+    SessionManagementListItemResponse,
 )
 
 from app.models.session_target_category import SessionTargetCategory
@@ -24,6 +25,7 @@ from app.models.age_category import AgeCategory
 from app.models.registration import Registration
 from app.models.user import User
 
+from app.sessions.status import get_session_status
 from app.sessions.notifications import send_session_posted_emails
 from app.sessions.notifications import send_session_cancellation_emails
 
@@ -222,3 +224,36 @@ def get_session_management_detail(
     attended_count = db.scalar(attended_count_statement)
 
     return training_session, attended_count
+
+def get_managed_sessions(
+    db: Session,
+) -> list[SessionManagementListItemResponse]:
+    sessions = (
+        db.query(TrainingSession)
+        .options(
+            selectinload(TrainingSession.target_categories),
+        )
+        .order_by(TrainingSession.date, TrainingSession.start_time)
+        .all()
+    )
+
+    now = datetime.now()
+
+    return [
+        SessionManagementListItemResponse(
+            id=session.id,
+            title=session.title,
+            date=session.date,
+            start_time=session.start_time,
+            duration_minutes=session.duration_minutes,
+            max_capacity=session.max_capacity,
+            registered_count=session.registered_count,
+            instructor_name=session.instructor_name,
+            status=get_session_status(session, now),
+            target_age_category_ids=[
+                target_category.age_category_id
+                for target_category in session.target_categories
+            ],
+        )
+        for session in sessions
+    ]

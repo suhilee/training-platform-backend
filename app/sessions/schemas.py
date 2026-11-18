@@ -130,3 +130,15 @@ class SessionManagementDetailResponse(BaseModel):
     prerequisites: str | None
     instructor_email: EmailStr | None
     instructor_phone: str | None
+
+class SessionManagementListItemResponse(BaseModel):
+    id: UUID
+    title: str
+    date: date
+    start_time: time
+    duration_minutes: int
+    max_capacity: int
+    registered_count: int
+    instructor_name: str
+    status: str
+    target_age_category_ids: list[int]

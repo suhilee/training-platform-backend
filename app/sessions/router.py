@@ -19,6 +19,7 @@ from app.registrations.schemas import (
 from app.sessions.schemas import (
     SessionCreateRequest,
     SessionCreateResponse,
+    SessionManagementListItemResponse,
     SessionUpdateRequest,
     SessionManagementDetailResponse,
     SessionUpdateResponse,
@@ -52,6 +53,7 @@ from app.registrations.service import (
 from app.sessions.management_service import (
     create_session,
     cancel_session,
+    get_managed_sessions,
     update_session,
     get_session_management_detail,
 )
@@ -167,6 +169,19 @@ def list_my_sessions(
         )
         for registration, training_session, has_attendance in my_sessions
     ]
+
+## MANAGER SESSIONS LISTING
+@router.get(
+    "/management",
+    response_model=list[SessionManagementListItemResponse],
+)
+def list_managed_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.SESSION_MANAGER),
+    ),
+) -> list[SessionManagementListItemResponse]:
+    return get_managed_sessions(db=db)
 
 
 @router.get(
