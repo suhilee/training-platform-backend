@@ -15,6 +15,7 @@ from app.sessions.exceptions import (
 )
 
 from app.sessions.schemas import (
+    SessionAttendeeResponse,
     SessionCreateRequest,
     SessionUpdateRequest,
     SessionManagementListItemResponse,
@@ -202,7 +203,7 @@ def update_session(
 def get_session_management_detail(
     db: Session,
     session_id: UUID,
-) -> tuple[TrainingSession, int]:
+) -> tuple[TrainingSession, int, list[SessionAttendeeResponse]]:
     training_session = db.get(
         TrainingSession,
         session_id,
@@ -211,19 +212,53 @@ def get_session_management_detail(
     if training_session is None:
         raise SessionNotFoundError
 
-    attended_count_statement = (
-        select(func.count())
-        .select_from(Attendance)
-        .join(
+    attendee_statement = (
+        select(
             Registration,
+            User,
+            Attendance,
+        )
+        .join(
+            User,
+            Registration.user_id == User.id,
+        )
+        .outerjoin(
+            Attendance,
             Attendance.registration_id == Registration.id,
         )
-        .where(Registration.session_id == session_id)
+        .where(
+            Registration.session_id == session_id,
+        )
+        .order_by(
+            User.last_name,
+            User.first_name,
+        )
     )
 
-    attended_count = db.scalar(attended_count_statement)
+    attendee_rows = db.execute(
+        attendee_statement,
+    ).all()
 
-    return training_session, attended_count
+    attendees = [
+        SessionAttendeeResponse(
+            registration_id=registration.id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            has_attended=attendance is not None,
+            attendance_validated=(
+                attendance is not None
+                and attendance.validated_at is not None
+            ),
+        )
+        for registration, user, attendance in attendee_rows
+    ]
+
+    attended_count = sum(
+        attendee.has_attended
+        for attendee in attendees
+    )
+
+    return training_session, attended_count, attendees
 
 def get_managed_sessions(
     db: Session,

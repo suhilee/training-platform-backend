@@ -467,7 +467,7 @@ def get_management_session_detail(
     ),
 ) -> SessionManagementDetailResponse:
     try:
-        training_session, attended_count = (
+        training_session, attended_count, attendees = (
             get_session_management_detail(
                 db=db,
                 session_id=session_id,
@@ -501,6 +501,5 @@ def get_management_session_detail(
             for target_category in training_session.target_categories
         ],
         prerequisites=training_session.prerequisites,
-        instructor_email=training_session.instructor_email,
-        instructor_phone=training_session.instructor_phone,
+        attendees=attendees,
     )

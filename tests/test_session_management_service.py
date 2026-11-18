@@ -459,26 +459,115 @@ def test_update_session_rejects_removing_category_with_registrants() -> None:
     db.refresh.assert_not_called()
 
 #session stats tests
-def test_get_session_management_detail_returns_session_and_attended_count() -> None:
+def test_get_session_management_detail_returns_session_attended_count_and_attendees() -> None:
     session_id = uuid4()
+
+    registration = Mock(
+        id=uuid4(),
+    )
+
+    user = Mock(
+        first_name="Jane",
+        last_name="Doe",
+    )
+
+    attended_registration = Mock(
+        id=uuid4(),
+    )
+
+    attended_user = Mock(
+        first_name="John",
+        last_name="Smith",
+    )
+
+    unvalidated_attendance = Mock(
+        validated_at=None,
+    )
+
+    validated_attendance = Mock(
+        validated_at=datetime(2030, 1, 2, 12, 0, 0),
+    )
 
     training_session = Mock(
         id=session_id,
-        registered_count=5,
+        registered_count=2,
     )
 
     db = Mock()
     db.get.return_value = training_session
-    db.scalar.return_value = 3
+    db.execute.return_value.all.return_value = [
+        (registration, user, unvalidated_attendance),
+        (attended_registration, attended_user, validated_attendance),
+    ]
 
-    result_session, attended_count = get_session_management_detail(
-        db=db,
-        session_id=session_id,
+    result_session, attended_count, attendees = (
+        get_session_management_detail(
+            db=db,
+            session_id=session_id,
+        )
     )
 
     assert result_session is training_session
-    assert attended_count == 3
-    db.get.assert_called_once_with(TrainingSession, session_id)
+    assert attended_count == 2
+
+    assert len(attendees) == 2
+
+    assert attendees[0].registration_id == registration.id
+    assert attendees[0].first_name == "Jane"
+    assert attendees[0].last_name == "Doe"
+    assert attendees[0].has_attended is True
+    assert attendees[0].attendance_validated is False
+
+    assert attendees[1].registration_id == attended_registration.id
+    assert attendees[1].first_name == "John"
+    assert attendees[1].last_name == "Smith"
+    assert attendees[1].has_attended is True
+    assert attendees[1].attendance_validated is True
+
+    db.get.assert_called_once_with(
+        TrainingSession,
+        session_id,
+    )
+
+def test_get_session_management_detail_includes_absent_participants() -> None:
+    session_id = uuid4()
+
+    registration = Mock(
+        id=uuid4(),
+    )
+
+    user = Mock(
+        first_name="Jane",
+        last_name="Doe",
+    )
+
+    training_session = Mock(
+        id=session_id,
+        registered_count=1,
+    )
+
+    db = Mock()
+    db.get.return_value = training_session
+    db.execute.return_value.all.return_value = [
+        (registration, user, None),
+    ]
+
+    result_session, attended_count, attendees = (
+        get_session_management_detail(
+            db=db,
+            session_id=session_id,
+        )
+    )
+
+    assert result_session is training_session
+    assert attended_count == 0
+
+    assert len(attendees) == 1
+    assert attendees[0].registration_id == registration.id
+    assert attendees[0].first_name == "Jane"
+    assert attendees[0].last_name == "Doe"
+    assert attendees[0].has_attended is False
+    assert attendees[0].attendance_validated is False
 
 def test_get_session_management_detail_rejects_unknown_session() -> None:
     db = Mock()

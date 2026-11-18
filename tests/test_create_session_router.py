@@ -9,7 +9,7 @@ from app.auth.dependencies import get_current_user
 from app.db import get_db
 from app.main import app
 from app.models.user import UserRole
-from app.sessions.schemas import SessionUpdateRequest
+from app.sessions.schemas import SessionAttendeeResponse, SessionUpdateRequest
 from app.sessions.exceptions import (
     TrainingTypeNotFoundError,
     AgeCategoryNotFoundError,
@@ -624,9 +624,18 @@ def test_session_manager_can_get_management_session_detail(
             SimpleNamespace(age_category_id=3),
         ],
     )
+    attendees = [
+        SessionAttendeeResponse(
+            registration_id=uuid4(),
+            first_name="Jane",
+            last_name="Doe",
+            has_attended=True,
+            attendance_validated=False,
+        ),
+    ]
 
     service_mock = Mock(
-        return_value=(training_session, 3),
+        return_value=(training_session, 1, attendees),
     )
 
     monkeypatch.setattr(
@@ -653,13 +662,21 @@ def test_session_manager_can_get_management_session_detail(
     assert response_data["id"] == str(session_id)
     assert response_data["training_id"] == str(training_id)
     assert response_data["registered_count"] == 5
-    assert response_data["attended_count"] == 3
-    assert response_data["absent_count"] == 2
+    assert response_data["attended_count"] == 1
+    assert response_data["absent_count"] == 4
     assert response_data["zoom_url"] == (
         "https://secret.example.com/manager-only"
     )
     assert response_data["target_age_category_ids"] == [1, 3]
-
+    assert response_data["attendees"] == [
+        {
+            "registration_id": str(attendees[0].registration_id),
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "has_attended": True,
+            "attendance_validated": False,
+        },
+    ]
     service_mock.assert_called_once_with(
         db=fake_db,
         session_id=session_id,

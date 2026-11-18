@@ -8,3 +8,10 @@ class AttendanceValidationRequest(BaseModel):
 
 class AttendanceValidationResponse(BaseModel):
     validated_count: int
+
+class SessionAttendeeResponse(BaseModel):
+    registration_id: UUID
+    first_name: str
+    last_name: str
+    has_attended: bool
+    attendance_validated: bool

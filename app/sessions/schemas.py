@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator, EmailStr
 
+from app.attendance.schemas import SessionAttendeeResponse
+
 
 class NewTrainingTypeInput(BaseModel):
     training_code: str = Field(min_length=1, max_length=50)
@@ -128,8 +130,7 @@ class SessionManagementDetailResponse(BaseModel):
     is_cancelled: bool
     target_age_category_ids: list[int]
     prerequisites: str | None
-    instructor_email: EmailStr | None
-    instructor_phone: str | None
+    attendees: list[SessionAttendeeResponse]
 
 class SessionManagementListItemResponse(BaseModel):
     id: UUID
