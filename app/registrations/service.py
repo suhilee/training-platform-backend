@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select, outerjoin
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.registration import Registration
 from app.models.attendance import Attendance
@@ -272,6 +272,7 @@ def get_my_sessions(
             Attendance.registration_id == Registration.id,
         )
         .where(Registration.user_id == current_user.id)
+        .options(selectinload(TrainingSession.instructor))
     )
 
     rows = db.execute(statement).all()

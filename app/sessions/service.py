@@ -20,7 +20,10 @@ def get_eligible_sessions(
             SessionTargetCategory.age_category_id
             == current_user.age_category_id
         )
-        .options(selectinload(TrainingSession.target_categories))
+        .options(
+            selectinload(TrainingSession.target_categories),
+            selectinload(TrainingSession.instructor),
+        )
     )
 
     return list(db.execute(statement).unique().scalars().all())
