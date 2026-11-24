@@ -5,6 +5,7 @@ from app.sessions.management_service import get_managed_sessions
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
 from app.models.age_category import AgeCategory
+from app.models.instructor import Instructor
 from app.models.session_target_category import SessionTargetCategory
 
 
@@ -31,11 +32,23 @@ def test_get_managed_sessions_returns_all_sessions(
         max_age=14,
     )
 
+    first_instructor = Instructor(
+        first_name="Jane",
+        last_name="Doe",
+    )
+
+    second_instructor = Instructor(
+        first_name="John",
+        last_name="Doe",
+    )
+
     db_session.add_all(
         [
             training_type,
             age_category_two,
             age_category_three,
+            first_instructor,
+            second_instructor,
         ]
     )
     db_session.flush()
@@ -49,7 +62,7 @@ def test_get_managed_sessions_returns_all_sessions(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://example.com/first-meeting",
-        instructor_name="Jane Doe",
+        instructor_id=first_instructor.id,
         target_categories=[
             SessionTargetCategory(
                 age_category_id=age_category_two.id,
@@ -66,7 +79,7 @@ def test_get_managed_sessions_returns_all_sessions(
         duration_minutes=90,
         max_capacity=50,
         zoom_url="https://example.com/second-meeting",
-        instructor_name="John Doe",
+        instructor_id=second_instructor.id,
         target_categories=[
             SessionTargetCategory(
                 age_category_id=age_category_three.id,
@@ -107,12 +120,16 @@ def test_get_managed_sessions_returns_all_sessions(
     )
 
     assert first_result.title == "Python basics"
+    assert first_result.instructor_id == first_instructor.id
+    assert first_result.instructor_name == "Jane Doe"
     assert first_result.status == "open"
     assert first_result.target_age_category_ids == [
         age_category_two.id,
     ]
 
     assert second_result.title == "Advanced Python"
+    assert second_result.instructor_id == second_instructor.id
+    assert second_result.instructor_name == "John Doe"
     assert second_result.status == "open"
     assert second_result.target_age_category_ids == [
         age_category_three.id,

@@ -11,6 +11,7 @@ from app.models.certificate import Certificate
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
+from app.models.instructor import Instructor
 from app.models.user import User, UserRole
 from app.models.age_category import AgeCategory
 from app.certificates.exceptions import CertificateNotOwnedError
@@ -56,6 +57,11 @@ def test_participant_can_retrieve_own_certificate(
         name="Certificate Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -65,7 +71,7 @@ def test_participant_can_retrieve_own_certificate(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -74,6 +80,7 @@ def test_participant_can_retrieve_own_certificate(
             participant,
             manager,
             training_type,
+            instructor,
             completed_session,
         ]
     )
@@ -179,6 +186,11 @@ def test_participant_can_list_only_their_certificates(
         name="Certificate List Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     older_session = TrainingSession(
         training_type=training_type,
         title="Older session",
@@ -188,7 +200,7 @@ def test_participant_can_list_only_their_certificates(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/older",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     newer_session = TrainingSession(
@@ -200,7 +212,7 @@ def test_participant_can_list_only_their_certificates(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/newer",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -210,6 +222,7 @@ def test_participant_can_list_only_their_certificates(
             participant,
             other_participant,
             training_type,
+            instructor,
             older_session,
             newer_session,
         ]
@@ -342,6 +355,11 @@ def test_participant_can_download_own_certificate_pdf(
         name="Certificate PDF Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed PDF session",
@@ -351,11 +369,18 @@ def test_participant_can_download_own_certificate_pdf(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/pdf",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
-        [age_category, manager, participant, training_type, completed_session]
+        [
+            age_category,
+            manager,
+            participant,
+            training_type,
+            instructor,
+            completed_session,
+        ]
     )
     db_session.flush()
 
@@ -457,6 +482,11 @@ def test_other_participant_cannot_download_certificate_pdf(
         name="Certificate PDF Unauthorized Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed unauthorized PDF session",
@@ -466,7 +496,7 @@ def test_other_participant_cannot_download_certificate_pdf(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/unauthorized",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -476,6 +506,7 @@ def test_other_participant_cannot_download_certificate_pdf(
             owner,
             other_participant,
             training_type,
+            instructor,
             completed_session,
         ]
     )

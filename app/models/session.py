@@ -19,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 from app.models.training_type import TrainingType
 from app.models.session_target_category import SessionTargetCategory
+from app.models.instructor import Instructor
 
 class Session(Base):
     __tablename__ = "sessions"
@@ -86,25 +87,19 @@ class Session(Base):
     nullable=False,
     )
 
-    instructor_name: Mapped[str] = mapped_column(
-    String(200),
-    nullable=False,
+    instructor_id: Mapped[UUID] = mapped_column(
+        ForeignKey("instructors.id"),
+        nullable=False,
+    )
+
+    instructor: Mapped[Instructor] = relationship(
+        back_populates="sessions",
     )
 
     prerequisites: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         )
-
-    instructor_email: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-
-    instructor_phone: Mapped[str | None] = mapped_column(
-        String(30),
-        nullable=True,
-    )
 
     is_cancelled: Mapped[bool] = mapped_column(
     Boolean,

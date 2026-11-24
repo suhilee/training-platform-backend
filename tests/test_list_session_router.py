@@ -30,7 +30,10 @@ def test_list_sessions_returns_eligible_sessions_without_zoom_url(
         duration_minutes=60,
         max_capacity=100,
         registered_count=25,
-        instructor_name="Jane Doe",
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
         zoom_url="https://secret.example.com/meeting",
         training_type=SimpleNamespace(
@@ -63,7 +66,11 @@ def test_list_sessions_returns_eligible_sessions_without_zoom_url(
     assert len(body) == 1
     assert body[0]["id"] == str(training_session.id)
     assert body[0]["title"] == "Introduction to Python"
+    assert body[0]["instructor_name"] == "Jane Doe"
     assert body[0]["status"] == "open"
+    assert "instructor_id" not in body[0]
+    assert "instructor_email" not in body[0]
+    assert "instructor_phone" not in body[0]
     assert "zoom_url" not in body[0]
 
     service_mock.assert_called_once_with(
@@ -89,7 +96,10 @@ def test_list_sessions_orders_open_sessions_by_earliest_start_time(
         duration_minutes=60,
         max_capacity=100,
         registered_count=0,
-        instructor_name="Jane Doe",
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
         zoom_url="https://secret.example.com/later",
         training_type=SimpleNamespace(
@@ -107,7 +117,10 @@ def test_list_sessions_orders_open_sessions_by_earliest_start_time(
         duration_minutes=60,
         max_capacity=100,
         registered_count=0,
-        instructor_name="Jane Doe",
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
         zoom_url="https://secret.example.com/earlier",
         training_type=SimpleNamespace(
@@ -170,7 +183,10 @@ def test_get_session_detail_returns_eligible_session_without_zoom_url(
         duration_minutes=60,
         max_capacity=100,
         registered_count=25,
-        instructor_name="Jane Doe",
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
         zoom_url="https://secret.example.com/meeting",
         training_type=SimpleNamespace(
@@ -202,7 +218,11 @@ def test_get_session_detail_returns_eligible_session_without_zoom_url(
 
     assert body["id"] == str(training_session.id)
     assert body["title"] == "Introduction to Python"
+    assert body["instructor_name"] == "Jane Doe"
     assert body["status"] == "open"
+    assert "instructor_id" not in body
+    assert "instructor_email" not in body
+    assert "instructor_phone" not in body
     assert "zoom_url" not in body
 
     service_mock.assert_called_once_with(

@@ -16,6 +16,7 @@ from app.sessions.exceptions import (
     SessionNotFoundError,
     CapacityBelowRegistrationCountError,
     TargetAgeCategoryHasRegistrationsError,
+    InstructorNotFoundError,
 )
 
 
@@ -23,6 +24,7 @@ def test_session_manager_can_create_session(monkeypatch) -> None:
     fake_db = object()
     manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
     training_id = uuid4()
+    instructor_id = uuid4()
 
     created_session = SimpleNamespace(
         id=uuid4(),
@@ -30,14 +32,16 @@ def test_session_manager_can_create_session(monkeypatch) -> None:
         title="Introduction to AI",
         description="A beginner session.",
         prerequisites=None,
-        instructor_email=None,
-        instructor_phone=None,
         date=date(2030, 1, 1),
         start_time=time(10, 0),
         duration_minutes=60,
         max_capacity=100,
         registered_count=0,
-        instructor_name="Jane Doe",
+        instructor_id=instructor_id,
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
     )
 
@@ -63,14 +67,12 @@ def test_session_manager_can_create_session(monkeypatch) -> None:
                 "title": "Introduction to AI",
                 "description": "A beginner session.",
                 "prerequisites": None,
-                "instructor_email": None,
-                "instructor_phone": None,
                 "date": "2030-01-01",
                 "start_time": "10:00:00",
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(instructor_id),
                 "target_age_category_ids": [3],
             },
         )
@@ -85,6 +87,10 @@ def test_session_manager_can_create_session(monkeypatch) -> None:
     assert body["training_id"] == str(training_id)
     assert body["title"] == "Introduction to AI"
     assert body["registered_count"] == 0
+    assert body["instructor_id"] == str(instructor_id)
+    assert body["instructor_name"] == "Jane Doe"
+    assert "instructor_email" not in body
+    assert "instructor_phone" not in body
     assert body["is_cancelled"] is False
     assert "zoom_url" not in body
 
@@ -117,7 +123,7 @@ def test_participant_cannot_create_session(monkeypatch) -> None:
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(uuid4()),
                 "target_age_category_ids": [3],
             },
         )
@@ -160,7 +166,7 @@ def test_session_manager_gets_404_for_unknown_training_type(
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(uuid4()),
                 "target_age_category_ids": [3],
             },
         )
@@ -169,6 +175,46 @@ def test_session_manager_gets_404_for_unknown_training_type(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Training type not found."
+
+def test_session_manager_gets_404_for_unknown_instructor(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+
+    service_mock = Mock(side_effect=InstructorNotFoundError)
+
+    monkeypatch.setattr(
+        "app.sessions.router.create_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            "/sessions",
+            json={
+                "training_id": str(uuid4()),
+                "title": "Introduction to AI",
+                "description": "A beginner session.",
+                "date": "2030-01-01",
+                "start_time": "10:00:00",
+                "duration_minutes": 60,
+                "max_capacity": 100,
+                "zoom_url": "https://secret.example.com/meeting",
+                "instructor_id": str(uuid4()),
+                "target_age_category_ids": [3],
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Instructor not found."
 
 def test_create_session_requires_exactly_one_training_type_choice(
     monkeypatch,
@@ -198,7 +244,7 @@ def test_create_session_requires_exactly_one_training_type_choice(
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(uuid4()),
                 "target_age_category_ids": [3],
             },
         )
@@ -214,7 +260,7 @@ def test_create_session_rejects_both_training_type_choices(
     fake_db = object()
     manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
     service_mock = Mock()
-
+    instructor_id = uuid4()
     monkeypatch.setattr(
         "app.sessions.router.create_session",
         service_mock,
@@ -242,7 +288,7 @@ def test_create_session_rejects_both_training_type_choices(
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(instructor_id),
                 "target_age_category_ids": [3],
             },
         )
@@ -282,7 +328,7 @@ def test_session_manager_gets_404_for_unknown_target_age_category(
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(uuid4()),
                 "target_age_category_ids": [999],
             },
         )
@@ -321,7 +367,7 @@ def test_create_session_rejects_duplicate_target_age_categories(
                 "duration_minutes": 60,
                 "max_capacity": 100,
                 "zoom_url": "https://secret.example.com/meeting",
-                "instructor_name": "Jane Doe",
+                "instructor_id": str(uuid4()),
                 "target_age_category_ids": [3, 3],
             },
         )
@@ -441,6 +487,7 @@ def test_session_manager_can_update_session(
     fake_db = object()
     manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
     session_id = uuid4()
+    instructor_id = uuid4()
 
     updated_session = SimpleNamespace(
         id=session_id,
@@ -448,8 +495,11 @@ def test_session_manager_can_update_session(
         title="Updated AI Session",
         description="An updated beginner session.",
         prerequisites=None,
-        instructor_email=None,
-        instructor_phone=None,
+        instructor_id=instructor_id,
+        instructor=SimpleNamespace(
+            first_name="John",
+            last_name="Doe",
+        ),
         date=date(2030, 1, 2),
         start_time=time(11, 0),
         duration_minutes=90,
@@ -459,7 +509,6 @@ def test_session_manager_can_update_session(
             SimpleNamespace(age_category_id=4)
         ],
         zoom_url="https://secret.example.com/updated-meeting",
-        instructor_name="John Doe",
         is_cancelled=False,
     )
     service_mock = Mock(return_value=updated_session)
@@ -482,7 +531,7 @@ def test_session_manager_can_update_session(
         "duration_minutes": 90,
         "max_capacity": 20,
         "zoom_url": "https://secret.example.com/updated-meeting",
-        "instructor_name": "John Doe",
+        "instructor_id": str(instructor_id),
         "target_age_category_ids": [3, 4],
     }
 
@@ -497,6 +546,10 @@ def test_session_manager_can_update_session(
     assert response.status_code == 200
     assert response.json()["id"] == str(session_id)
     assert response.json()["title"] == "Updated AI Session"
+    assert response.json()["instructor_id"] == str(instructor_id)
+    assert response.json()["instructor_name"] == "John Doe"
+    assert "instructor_email" not in response.json()
+    assert "instructor_phone" not in response.json()
     assert "zoom_url" in response.json()
 
     service_mock.assert_called_once()
@@ -530,7 +583,7 @@ def test_session_manager_gets_409_when_capacity_is_below_registrations(
         "duration_minutes": 90,
         "max_capacity": 9,
         "zoom_url": "https://secret.example.com/updated-meeting",
-        "instructor_name": "John Doe",
+        "instructor_id": str(uuid4()),
         "target_age_category_ids": [3],
     }
 
@@ -547,6 +600,48 @@ def test_session_manager_gets_409_when_capacity_is_below_registrations(
         "Capacity cannot be lower than the "
         "current registration count."
     )
+
+def test_session_manager_gets_404_for_unknown_instructor_when_updating(
+    monkeypatch,
+) -> None:
+    fake_db = object()
+    manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
+    session_id = uuid4()
+
+    service_mock = Mock(side_effect=InstructorNotFoundError)
+
+    monkeypatch.setattr(
+        "app.sessions.router.update_session",
+        service_mock,
+    )
+
+    app.dependency_overrides[get_db] = lambda: fake_db
+    app.dependency_overrides[get_current_user] = lambda: manager
+
+    client = TestClient(app)
+
+    payload = {
+        "title": "Updated AI Session",
+        "description": "An updated beginner session.",
+        "date": "2030-01-02",
+        "start_time": "11:00:00",
+        "duration_minutes": 90,
+        "max_capacity": 20,
+        "zoom_url": "https://secret.example.com/updated-meeting",
+        "instructor_id": str(uuid4()),
+        "target_age_category_ids": [3],
+    }
+
+    try:
+        response = client.put(
+            f"/sessions/{session_id}",
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Instructor not found."
 
 def test_session_manager_gets_409_when_removing_category_with_registrants(
     monkeypatch,
@@ -577,7 +672,7 @@ def test_session_manager_gets_409_when_removing_category_with_registrants(
         "duration_minutes": 90,
         "max_capacity": 20,
         "zoom_url": "https://secret.example.com/updated-meeting",
-        "instructor_name": "John Doe",
+        "instructor_id": str(uuid4()),
         "target_age_category_ids": [2],
     }
 
@@ -602,6 +697,7 @@ def test_session_manager_can_get_management_session_detail(
     manager = SimpleNamespace(role=UserRole.SESSION_MANAGER)
     session_id = uuid4()
     training_id = uuid4()
+    instructor_id = uuid4()
 
     training_session = SimpleNamespace(
         id=session_id,
@@ -609,15 +705,17 @@ def test_session_manager_can_get_management_session_detail(
         title="Introduction to AI",
         description="A beginner-friendly AI session.",
         prerequisites=None,
-        instructor_email=None,
-        instructor_phone=None,
         date=date(2030, 1, 2),
         start_time=time(10, 0),
         duration_minutes=90,
         max_capacity=20,
         registered_count=5,
         zoom_url="https://secret.example.com/manager-only",
-        instructor_name="John Doe",
+        instructor_id=instructor_id,
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
         target_categories=[
             SimpleNamespace(age_category_id=1),
@@ -661,6 +759,10 @@ def test_session_manager_can_get_management_session_detail(
 
     assert response_data["id"] == str(session_id)
     assert response_data["training_id"] == str(training_id)
+    assert response_data["instructor_id"] == str(instructor_id)
+    assert response_data["instructor_name"] == "Jane Doe"
+    assert "instructor_email" not in response_data
+    assert "instructor_phone" not in response_data
     assert response_data["registered_count"] == 5
     assert response_data["attended_count"] == 1
     assert response_data["absent_count"] == 4

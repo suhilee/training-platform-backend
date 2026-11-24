@@ -11,6 +11,7 @@ from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
 from app.models.session_target_category import SessionTargetCategory
 from app.models.training_type import TrainingType
+from app.models.instructor import Instructor
 from app.models.user import User
 from app.notifications.email import ConsoleEmailSender
 from app.registrations.service import (
@@ -63,6 +64,11 @@ def test_join_session_does_not_create_duplicate_attendance(
     db_session.commit()
     db_session.refresh(training_type)
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     training_session = TrainingSession(
         training_id=training_type.id,
         title="Join idempotency session",
@@ -72,7 +78,7 @@ def test_join_session_does_not_create_duplicate_attendance(
         duration_minutes=60,
         max_capacity=10,
         registered_count=0,
-        instructor_name="instruct",
+        instructor=instructor,
         zoom_url="https://zoom.example.com/test",
         is_cancelled=False,
     )

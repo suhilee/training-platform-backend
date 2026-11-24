@@ -11,6 +11,7 @@ from app.models.attendance import Attendance
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
+from app.models.instructor import Instructor
 from app.models.user import User, UserRole
 from app.models.age_category import AgeCategory
 
@@ -52,6 +53,11 @@ def test_manager_can_issue_certificate_for_validated_attendance(
         name="Certificate Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -61,7 +67,7 @@ def test_manager_can_issue_certificate_for_validated_attendance(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -70,6 +76,7 @@ def test_manager_can_issue_certificate_for_validated_attendance(
             manager,
             participant,
             training_type,
+            instructor,
             completed_session,
         ]
     )
@@ -205,6 +212,11 @@ def test_manager_cannot_issue_certificate_for_unvalidated_attendance(
         name="Unvalidated Certificate Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -214,7 +226,7 @@ def test_manager_cannot_issue_certificate_for_unvalidated_attendance(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -223,6 +235,7 @@ def test_manager_cannot_issue_certificate_for_unvalidated_attendance(
             manager,
             participant,
             training_type,
+            instructor,
             completed_session,
         ]
     )
@@ -303,6 +316,11 @@ def test_manager_cannot_issue_duplicate_certificate(
         name="Duplicate Certificate Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -312,7 +330,7 @@ def test_manager_cannot_issue_duplicate_certificate(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -321,6 +339,7 @@ def test_manager_cannot_issue_duplicate_certificate(
             manager,
             participant,
             training_type,
+            instructor,
             completed_session,
         ]
     )

@@ -9,6 +9,7 @@ from app.sessions.exceptions import (
     SessionNotFoundError,
     CapacityBelowRegistrationCountError,
     TargetAgeCategoryHasRegistrationsError,
+    InstructorNotFoundError,
 )
 
 from app.sessions.management_service import (
@@ -44,7 +45,7 @@ def test_create_session_rejects_unknown_training_type() -> None:
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://example.com/meeting",
-        instructor_name="Jane Doe",
+        instructor_id=uuid4(),
         target_age_category_ids=[3],
     )
 
@@ -61,6 +62,7 @@ def test_create_session_rejects_unknown_training_type() -> None:
 
 def test_create_session_uses_existing_training_type() -> None:
     training_id = uuid4()
+    instructor_id = uuid4()
 
     request = SessionCreateRequest(
         training_id=training_id,
@@ -71,7 +73,7 @@ def test_create_session_uses_existing_training_type() -> None:
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://example.com/meeting",
-        instructor_name="Jane Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[3],
     )
 
@@ -84,6 +86,9 @@ def test_create_session_uses_existing_training_type() -> None:
 
     db = Mock()
     db.get.return_value = existing_training_type
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
 
     with patch(
         "app.sessions.management_service.send_session_posted_emails"
@@ -107,7 +112,7 @@ def test_create_session_uses_existing_training_type() -> None:
     assert result.duration_minutes == request.duration_minutes
     assert result.max_capacity == request.max_capacity
     assert result.zoom_url == request.zoom_url
-    assert result.instructor_name == request.instructor_name
+    assert result.instructor_id == request.instructor_id
 
     db.get.assert_has_calls(
         [
@@ -119,6 +124,8 @@ def test_create_session_uses_existing_training_type() -> None:
     db.add.assert_called_once_with(result)
 
 def test_create_session_creates_new_training_type() -> None:
+    instructor_id = uuid4()
+
     request = SessionCreateRequest(
         new_training_type=NewTrainingTypeInput(
             training_code="AI-INTRO-001",
@@ -132,11 +139,14 @@ def test_create_session_creates_new_training_type() -> None:
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://example.com/meeting",
-        instructor_name="Jane Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[3],
     )
 
     db = Mock()
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
 
     with patch(
         "app.sessions.management_service.send_session_posted_emails"
@@ -155,6 +165,7 @@ def test_create_session_creates_new_training_type() -> None:
     assert result.training_type.training_code == "AI-INTRO-001"
     assert result.training_type.name == "Introduction to AI"
     assert result.training_type.description == "A beginner AI training."
+    assert result.instructor_id == request.instructor_id
 
     db.get.assert_called_once_with(AgeCategory, 3)
     assert db.add.call_count == 2
@@ -163,6 +174,7 @@ def test_create_session_creates_new_training_type() -> None:
 
 def test_create_session_rejects_unknown_target_age_category() -> None:
     training_id = uuid4()
+    instructor_id = uuid4()
 
     request = SessionCreateRequest(
         training_id=training_id,
@@ -173,7 +185,7 @@ def test_create_session_rejects_unknown_target_age_category() -> None:
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://example.com/meeting",
-        instructor_name="Jane Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[999],
     )
 
@@ -185,6 +197,9 @@ def test_create_session_rejects_unknown_target_age_category() -> None:
     )
 
     db = Mock()
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
 
     def get_side_effect(model, object_id):
         if model is TrainingType:
@@ -198,6 +213,40 @@ def test_create_session_rejects_unknown_target_age_category() -> None:
     db.get.side_effect = get_side_effect
 
     with pytest.raises(AgeCategoryNotFoundError):
+        create_session(db=db, request=request)
+
+    db.add.assert_not_called()
+    db.commit.assert_not_called()
+    db.refresh.assert_not_called()
+
+def test_create_session_rejects_unknown_instructor() -> None:
+    training_id = uuid4()
+
+    request = SessionCreateRequest(
+        training_id=training_id,
+        title="Introduction to AI",
+        description="A beginner session.",
+        date="2030-01-01",
+        start_time="10:00:00",
+        duration_minutes=60,
+        max_capacity=100,
+        zoom_url="https://example.com/meeting",
+        instructor_id=uuid4(),
+        target_age_category_ids=[3],
+    )
+
+    existing_training_type = TrainingType(
+        id=training_id,
+        training_code="AI-INTRO-001",
+        name="Introduction to AI",
+        description="A beginner AI training.",
+    )
+
+    db = Mock()
+    db.get.return_value = existing_training_type
+    db.query.return_value.filter.return_value.first.return_value = None
+
+    with pytest.raises(InstructorNotFoundError):
         create_session(db=db, request=request)
 
     db.add.assert_not_called()
@@ -288,6 +337,7 @@ def test_cancel_session_preserves_existing_cancellation_time(
 #session updates tests
 def test_update_session_rejects_capacity_below_registered_count() -> None:
     session_id = uuid4()
+    instructor_id = uuid4()
 
     training_session = Mock(
         id=session_id,
@@ -295,6 +345,9 @@ def test_update_session_rejects_capacity_below_registered_count() -> None:
     )
     db = Mock()
     db.get.return_value = training_session
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
 
     request = SessionUpdateRequest(
         title="Updated AI Session",
@@ -304,7 +357,7 @@ def test_update_session_rejects_capacity_below_registered_count() -> None:
         duration_minutes=90,
         max_capacity=9,
         zoom_url="https://example.com/updated-meeting",
-        instructor_name="John Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[3],
     )
 
@@ -319,8 +372,42 @@ def test_update_session_rejects_capacity_below_registered_count() -> None:
     db.commit.assert_not_called()
     db.refresh.assert_not_called()
 
+def test_update_session_rejects_unknown_instructor() -> None:
+    session_id = uuid4()
+
+    training_session = Mock(
+        id=session_id,
+        registered_count=10,
+    )
+    db = Mock()
+    db.get.return_value = training_session
+    db.query.return_value.filter.return_value.first.return_value = None
+
+    request = SessionUpdateRequest(
+        title="Updated AI Session",
+        description="An updated beginner session.",
+        date="2030-01-02",
+        start_time="11:00:00",
+        duration_minutes=90,
+        max_capacity=9,
+        zoom_url="https://example.com/updated-meeting",
+        instructor_id=uuid4(),
+        target_age_category_ids=[3],
+    )
+
+    with pytest.raises(InstructorNotFoundError):
+        update_session(
+            db=db,
+            session_id=session_id,
+            request=request,
+        )
+
+    db.commit.assert_not_called()
+    db.refresh.assert_not_called()
+
 def test_update_session_updates_direct_fields() -> None:
     session_id = uuid4()
+    instructor_id = uuid4()
 
     training_session = Mock(
         id=session_id,
@@ -332,11 +419,13 @@ def test_update_session_updates_direct_fields() -> None:
         duration_minutes=60,
         max_capacity=20,
         zoom_url="https://example.com/old-meeting",
-        instructor_name="Old Instructor",
         target_categories=[],
     )
     db = Mock()
     db.get.return_value = training_session
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
 
     request = SessionUpdateRequest(
         title="Updated AI Session",
@@ -346,7 +435,7 @@ def test_update_session_updates_direct_fields() -> None:
         duration_minutes=90,
         max_capacity=15,
         zoom_url="https://example.com/updated-meeting",
-        instructor_name="John Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[3],
     )
 
@@ -364,12 +453,13 @@ def test_update_session_updates_direct_fields() -> None:
     assert training_session.duration_minutes == request.duration_minutes
     assert training_session.max_capacity == request.max_capacity
     assert training_session.zoom_url == request.zoom_url
-    assert training_session.instructor_name == request.instructor_name
+    assert training_session.instructor_id == request.instructor_id
     db.commit.assert_called_once()
     db.refresh.assert_called_once_with(training_session)
 
 def test_update_session_replaces_target_age_categories() -> None:
     session_id = uuid4()
+    instructor_id = uuid4()
 
     training_session = Mock(
         id=session_id,
@@ -390,6 +480,9 @@ def test_update_session_replaces_target_age_categories() -> None:
         raise AssertionError(f"Unexpected model: {model}")
 
     db.get.side_effect = get_side_effect
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
     db.execute.return_value.scalars.return_value.all.return_value = []
 
     request = SessionUpdateRequest(
@@ -400,7 +493,7 @@ def test_update_session_replaces_target_age_categories() -> None:
         duration_minutes=90,
         max_capacity=20,
         zoom_url="https://example.com/updated-meeting",
-        instructor_name="John Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[3, 4],
     )
 
@@ -419,6 +512,7 @@ def test_update_session_replaces_target_age_categories() -> None:
 
 def test_update_session_rejects_removing_category_with_registrants() -> None:
     session_id = uuid4()
+    instructor_id = uuid4()
 
     training_session = Mock(
         id=session_id,
@@ -430,6 +524,9 @@ def test_update_session_rejects_removing_category_with_registrants() -> None:
     )
     db = Mock()
     db.get.return_value = training_session
+    db.query.return_value.filter.return_value.first.return_value = Mock(
+        id=instructor_id,
+    )
 
     registered_user = Mock(age_category_id=3)
     db.execute.return_value.scalars.return_value.all.return_value = [
@@ -444,7 +541,7 @@ def test_update_session_rejects_removing_category_with_registrants() -> None:
         duration_minutes=90,
         max_capacity=20,
         zoom_url="https://example.com/updated-meeting",
-        instructor_name="John Doe",
+        instructor_id=instructor_id,
         target_age_category_ids=[2],
     )
 

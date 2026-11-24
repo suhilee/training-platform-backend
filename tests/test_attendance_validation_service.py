@@ -10,6 +10,7 @@ from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
 from app.models.user import User, UserRole
 from app.models.age_category import AgeCategory
+from app.models.instructor import Instructor
 from app.models.certificate import Certificate
 from app.attendance.exceptions import(
     InvalidAttendanceSelectionError,
@@ -68,6 +69,11 @@ def test_validate_attendances_marks_selected_attendances_as_validated(
         name="Attendance Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -77,7 +83,7 @@ def test_validate_attendances_marks_selected_attendances_as_validated(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -87,6 +93,7 @@ def test_validate_attendances_marks_selected_attendances_as_validated(
             first_participant,
             second_participant,
             training_type,
+            instructor,
             completed_session,
         ]
     )
@@ -201,6 +208,11 @@ def test_validate_attendances_rejects_registration_from_another_session(
         name="Cross Session Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     target_session = TrainingSession(
         training_type=training_type,
         title="Target completed session",
@@ -210,7 +222,7 @@ def test_validate_attendances_rejects_registration_from_another_session(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/target",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     other_session = TrainingSession(
@@ -222,7 +234,7 @@ def test_validate_attendances_rejects_registration_from_another_session(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/other",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -231,6 +243,7 @@ def test_validate_attendances_rejects_registration_from_another_session(
             manager,
             participant,
             training_type,
+            instructor,
             target_session,
             other_session,
         ]
@@ -268,6 +281,11 @@ def test_validate_attendances_rejects_session_that_is_not_completed(
         name="Not Completed Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     unfinished_session = TrainingSession(
         training_type=training_type,
         title="Unfinished session",
@@ -277,10 +295,10 @@ def test_validate_attendances_rejects_session_that_is_not_completed(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/unfinished",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
-    db_session.add_all([training_type, unfinished_session])
+    db_session.add_all([training_type, instructor, unfinished_session])
     db_session.commit()
 
     with pytest.raises(SessionNotCompletedError):

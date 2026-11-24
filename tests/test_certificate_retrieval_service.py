@@ -16,6 +16,7 @@ from app.models.certificate import Certificate
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
+from app.models.instructor import Instructor
 from app.models.user import User, UserRole
 
 
@@ -70,6 +71,11 @@ def test_get_certificate_data_rejects_certificate_not_owned_by_current_user(
         name="Certificate Ownership Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -79,7 +85,7 @@ def test_get_certificate_data_rejects_certificate_not_owned_by_current_user(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -89,6 +95,7 @@ def test_get_certificate_data_rejects_certificate_not_owned_by_current_user(
             attacker,
             manager,
             training_type,
+            instructor,
             completed_session,
         ]
     )
@@ -183,6 +190,11 @@ def test_get_certificate_data_raises_error_when_certificate_does_not_exist(
         name="Missing Certificate Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     completed_session = TrainingSession(
         training_type=training_type,
         title="Completed session",
@@ -192,7 +204,7 @@ def test_get_certificate_data_raises_error_when_certificate_does_not_exist(
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/meeting",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -200,6 +212,7 @@ def test_get_certificate_data_raises_error_when_certificate_does_not_exist(
             age_category,
             participant,
             training_type,
+            instructor,
             completed_session,
         ]
     )

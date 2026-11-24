@@ -5,6 +5,10 @@ class SessionNotFoundOrIneligibleError(Exception):
 class TrainingTypeNotFoundError(Exception):
     pass
 
+class InstructorNotFoundError(Exception):
+    """Raised when a session references an instructor that does not exist."""
+    pass
+
 class AgeCategoryNotFoundError(Exception):
     pass
 

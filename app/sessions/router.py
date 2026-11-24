@@ -51,6 +51,7 @@ from app.registrations.service import (
     join_session,
 )
 from app.sessions.management_service import (
+    InstructorNotFoundError,
     create_session,
     cancel_session,
     get_managed_sessions,
@@ -111,7 +112,10 @@ def list_eligible_sessions(
             duration_minutes=training_session.duration_minutes,
             max_capacity=training_session.max_capacity,
             registered_count=training_session.registered_count,
-            instructor_name=training_session.instructor_name,
+            instructor_name=(
+                f"{training_session.instructor.first_name} "
+                f"{training_session.instructor.last_name}"
+            ),
             is_cancelled=training_session.is_cancelled,
             status=get_session_status(training_session, now),
         )
@@ -157,7 +161,10 @@ def list_my_sessions(
             duration_minutes=training_session.duration_minutes,
             max_capacity=training_session.max_capacity,
             registered_count=training_session.registered_count,
-            instructor_name=training_session.instructor_name,
+            instructor_name=(
+                f"{training_session.instructor.first_name} "
+                f"{training_session.instructor.last_name}"
+            ),
             is_cancelled=training_session.is_cancelled,
             status=get_session_status(training_session, now),
             registration_id=registration.id,
@@ -218,7 +225,10 @@ def get_eligible_session_detail(
         duration_minutes=training_session.duration_minutes,
         max_capacity=training_session.max_capacity,
         registered_count=training_session.registered_count,
-        instructor_name=training_session.instructor_name,
+        instructor_name=(
+            f"{training_session.instructor.first_name} "
+            f"{training_session.instructor.last_name}"
+        ),
         is_cancelled=training_session.is_cancelled,
         status=get_session_status(
             training_session,
@@ -347,6 +357,13 @@ def create_training_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Training type not found."
         )
+
+    except InstructorNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instructor not found.",
+        )
+
     except AgeCategoryNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -363,11 +380,13 @@ def create_training_session(
         duration_minutes=created_session.duration_minutes,
         max_capacity=created_session.max_capacity,
         registered_count=created_session.registered_count,
-        instructor_name=created_session.instructor_name,
+        instructor_id=created_session.instructor_id,
+        instructor_name=(
+            f"{created_session.instructor.first_name} "
+            f"{created_session.instructor.last_name}"
+        ),
         is_cancelled=created_session.is_cancelled,
         prerequisites=created_session.prerequisites,
-        instructor_email=created_session.instructor_email,
-        instructor_phone=created_session.instructor_phone,
     )
 
 
@@ -416,6 +435,11 @@ def update_training_session(
             session_id=session_id,
             request=request,
         )
+    except InstructorNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instructor not found.",
+        )
     except CapacityBelowRegistrationCountError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -442,11 +466,13 @@ def update_training_session(
         start_time=updated_session.start_time,
         duration_minutes=updated_session.duration_minutes,
         max_capacity=updated_session.max_capacity,
-        instructor_name=updated_session.instructor_name,
+        instructor_id=updated_session.instructor_id,
+        instructor_name=(
+            f"{updated_session.instructor.first_name} "
+            f"{updated_session.instructor.last_name}"
+        ),
         is_cancelled=updated_session.is_cancelled,
         prerequisites=updated_session.prerequisites,
-        instructor_email=updated_session.instructor_email,
-        instructor_phone=updated_session.instructor_phone,
         zoom_url=updated_session.zoom_url,
         target_age_category_ids=[
             target_category.age_category_id
@@ -494,7 +520,11 @@ def get_management_session_detail(
             training_session.registered_count - attended_count
         ),
         zoom_url=training_session.zoom_url,
-        instructor_name=training_session.instructor_name,
+        instructor_id=training_session.instructor_id,
+        instructor_name=(
+            f"{training_session.instructor.first_name} "
+            f"{training_session.instructor.last_name}"
+        ),
         is_cancelled=training_session.is_cancelled,
         target_age_category_ids=[
             target_category.age_category_id

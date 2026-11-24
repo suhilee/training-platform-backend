@@ -1,7 +1,7 @@
 from datetime import date, time
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator, EmailStr
+from pydantic import BaseModel, Field, model_validator
 
 from app.attendance.schemas import SessionAttendeeResponse
 
@@ -22,11 +22,10 @@ class SessionCreateRequest(BaseModel):
     duration_minutes: int = Field(gt=0)
     max_capacity: int = Field(default=100, gt=0)
     zoom_url: str = Field(min_length=1, max_length=2_000)
-    instructor_name: str = Field(min_length=1, max_length=200)
     target_age_category_ids: list[int] = Field(min_length=1)
     prerequisites: str | None = Field(default=None, max_length=2_000)
-    instructor_email: EmailStr | None = None
-    instructor_phone: str | None = Field(default=None, max_length=30)
+
+    instructor_id: UUID
 
     @model_validator(mode="after")
     def validate_training_type_choice(self) -> "SessionCreateRequest":
@@ -63,11 +62,12 @@ class SessionCreateResponse(BaseModel):
     duration_minutes: int
     max_capacity: int
     registered_count: int
+
     instructor_name: str
+    instructor_id: UUID
+
     is_cancelled: bool
     prerequisites: str | None
-    instructor_email: EmailStr | None
-    instructor_phone: str | None
 
 class SessionUpdateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
@@ -77,11 +77,10 @@ class SessionUpdateRequest(BaseModel):
     duration_minutes: int = Field(gt=0)
     max_capacity: int = Field(gt=0)
     zoom_url: str = Field(min_length=1, max_length=2_000)
-    instructor_name: str = Field(min_length=1, max_length=200)
     target_age_category_ids: list[int] = Field(min_length=1)
     prerequisites: str | None = Field(default=None, max_length=2_000)
-    instructor_email: EmailStr | None = None
-    instructor_phone: str | None = Field(default=None, max_length=30)
+
+    instructor_id: UUID
 
     @model_validator(mode="after")
     def validate_unique_target_age_categories(
@@ -106,10 +105,11 @@ class SessionUpdateResponse(BaseModel):
     duration_minutes: int
     max_capacity: int
     zoom_url: str
+
     instructor_name: str
+    instructor_id: UUID
+
     prerequisites: str | None
-    instructor_email: EmailStr | None
-    instructor_phone: str | None
     is_cancelled: bool
     target_age_category_ids: list[int]
 
@@ -126,7 +126,10 @@ class SessionManagementDetailResponse(BaseModel):
     attended_count: int
     absent_count: int
     zoom_url: str
+
+    instructor_id: UUID
     instructor_name: str
+
     is_cancelled: bool
     target_age_category_ids: list[int]
     prerequisites: str | None
@@ -140,6 +143,9 @@ class SessionManagementListItemResponse(BaseModel):
     duration_minutes: int
     max_capacity: int
     registered_count: int
+
+    instructor_id: UUID
     instructor_name: str
+
     status: str
     target_age_category_ids: list[int]

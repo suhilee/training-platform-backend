@@ -27,6 +27,7 @@ def make_managed_session(
         duration_minutes=60,
         max_capacity=100,
         registered_count=25,
+        instructor_id=uuid4(),
         instructor_name="Jane Doe",
         status="open",
         target_age_category_ids=target_age_category_ids,
@@ -88,6 +89,8 @@ def test_manager_can_list_all_sessions(monkeypatch) -> None:
 
     assert body[0]["title"] == "Python basics"
     assert body[0]["registered_count"] == 25
+    assert body[0]["instructor_id"] == str(first_session.instructor_id)
+    assert body[0]["instructor_name"] == "Jane Doe"
     assert body[0]["status"] == "open"
     assert body[0]["target_age_category_ids"] == [2]
 

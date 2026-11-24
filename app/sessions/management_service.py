@@ -12,6 +12,7 @@ from app.sessions.exceptions import (
     SessionNotFoundError,
     CapacityBelowRegistrationCountError,
     TargetAgeCategoryHasRegistrationsError,
+    InstructorNotFoundError,
 )
 
 from app.sessions.schemas import (
@@ -25,6 +26,7 @@ from app.models.session_target_category import SessionTargetCategory
 from app.models.age_category import AgeCategory
 from app.models.registration import Registration
 from app.models.user import User
+from app.models.instructor import Instructor
 
 from app.sessions.status import get_session_status
 from app.sessions.notifications import send_session_posted_emails
@@ -51,6 +53,15 @@ def create_session(
 
         db.add(training_type)
 
+    instructor = (
+        db.query(Instructor)
+        .filter(Instructor.id == request.instructor_id)
+        .first()
+    )
+
+    if instructor is None:
+        raise InstructorNotFoundError
+
     for age_category_id in request.target_age_category_ids:
         age_category = db.get(
             AgeCategory,
@@ -69,10 +80,8 @@ def create_session(
         duration_minutes=request.duration_minutes,
         max_capacity=request.max_capacity,
         zoom_url=request.zoom_url,
-        instructor_name=request.instructor_name,
+        instructor_id=instructor.id,
         prerequisites=request.prerequisites,
-        instructor_email=request.instructor_email,
-        instructor_phone=request.instructor_phone,
     )
 
     for age_category_id in request.target_age_category_ids:
@@ -135,6 +144,15 @@ def update_session(
     if training_session is None:
         raise SessionNotFoundError
 
+    instructor = (
+        db.query(Instructor)
+        .filter(Instructor.id == request.instructor_id)
+        .first()
+    )
+
+    if instructor is None:
+        raise InstructorNotFoundError
+
     if request.max_capacity < training_session.registered_count:
         raise CapacityBelowRegistrationCountError
     
@@ -190,10 +208,8 @@ def update_session(
     training_session.duration_minutes = request.duration_minutes
     training_session.max_capacity = request.max_capacity
     training_session.zoom_url = request.zoom_url
-    training_session.instructor_name = request.instructor_name
+    training_session.instructor_id = instructor.id
     training_session.prerequisites = request.prerequisites
-    training_session.instructor_email = request.instructor_email
-    training_session.instructor_phone = request.instructor_phone
 
     db.commit()
     db.refresh(training_session)
@@ -267,6 +283,7 @@ def get_managed_sessions(
         db.query(TrainingSession)
         .options(
             selectinload(TrainingSession.target_categories),
+            selectinload(TrainingSession.instructor),
         )
         .order_by(TrainingSession.date, TrainingSession.start_time)
         .all()
@@ -283,7 +300,11 @@ def get_managed_sessions(
             duration_minutes=session.duration_minutes,
             max_capacity=session.max_capacity,
             registered_count=session.registered_count,
-            instructor_name=session.instructor_name,
+            instructor_id=session.instructor_id,
+            instructor_name=(
+                f"{session.instructor.first_name} "
+                f"{session.instructor.last_name}"
+            ),
             status=get_session_status(session, now),
             target_age_category_ids=[
                 target_category.age_category_id

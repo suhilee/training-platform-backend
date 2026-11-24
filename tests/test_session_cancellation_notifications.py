@@ -7,6 +7,7 @@ from app.models.age_category import AgeCategory
 from app.models.registration import Registration
 from app.models.session import Session as TrainingSession
 from app.models.training_type import TrainingType
+from app.models.instructor import Instructor
 from app.models.user import User, UserRole
 from app.notifications.email import ConsoleEmailSender
 from app.sessions.notifications import send_session_cancellation_emails
@@ -61,6 +62,11 @@ def create_cancellation_fixture(db_session: Session) -> TrainingSession:
         name="Cancellation Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     training_session = TrainingSession(
         training_type=training_type,
         title="Python Fundamentals",
@@ -70,7 +76,7 @@ def create_cancellation_fixture(db_session: Session) -> TrainingSession:
         duration_minutes=60,
         max_capacity=100,
         zoom_url="https://zoom.example.com/cancellation",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -80,6 +86,7 @@ def create_cancellation_fixture(db_session: Session) -> TrainingSession:
             second_participant,
             unregistered_user,
             training_type,
+            instructor,
             training_session,
         ]
     )

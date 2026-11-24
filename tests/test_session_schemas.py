@@ -16,7 +16,7 @@ def valid_session_data() -> dict:
         "duration_minutes": 60,
         "max_capacity": 100,
         "zoom_url": "https://example.com/meeting",
-        "instructor_name": "Jane Doe",
+        "instructor_id": uuid4(),
         "target_age_category_ids": [3],
     }
 

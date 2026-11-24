@@ -30,7 +30,10 @@ def test_list_my_sessions_returns_participant_registrations(
         duration_minutes=60,
         max_capacity=100,
         registered_count=25,
-        instructor_name="Jane Doe",
+        instructor=SimpleNamespace(
+            first_name="Jane",
+            last_name="Doe",
+        ),
         is_cancelled=False,
         zoom_url="https://secret.example.com/meeting",
         training_type=SimpleNamespace(
@@ -68,7 +71,11 @@ def test_list_my_sessions_returns_participant_registrations(
     assert body[0]["id"] == str(training_session.id)
     assert body[0]["registration_id"] == str(registration.id)
     assert body[0]["registration_state"] == "registered"
+    assert body[0]["instructor_name"] == "Jane Doe"
     assert body[0]["status"] == "open"
+    assert "instructor_id" not in body[0]
+    assert "instructor_email" not in body[0]
+    assert "instructor_phone" not in body[0]
     assert "zoom_url" not in body[0]
 
     service_mock.assert_called_once_with(

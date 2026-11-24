@@ -8,6 +8,7 @@ from app.models.age_category import AgeCategory
 from app.models.session import Session as TrainingSession
 from app.models.session_target_category import SessionTargetCategory
 from app.models.training_type import TrainingType
+from app.models.instructor import Instructor
 from app.models.user import User, UserRole
 from app.notifications.email import ConsoleEmailSender
 from app.sessions.notifications import send_session_posted_emails
@@ -69,6 +70,11 @@ def create_session_posted_fixture(db_session: Session) -> TrainingSession:
         name="Session Posted Test Training",
     )
 
+    instructor = Instructor(
+        first_name="Test",
+        last_name="Instructor",
+    )
+
     training_session = TrainingSession(
         training_type=training_type,
         title="Python Fundamentals",
@@ -78,7 +84,7 @@ def create_session_posted_fixture(db_session: Session) -> TrainingSession:
         duration_minutes=90,
         max_capacity=100,
         zoom_url="https://zoom.example.com/posted-session",
-        instructor_name="Test Instructor",
+        instructor=instructor,
     )
 
     db_session.add_all(
@@ -89,6 +95,7 @@ def create_session_posted_fixture(db_session: Session) -> TrainingSession:
             second_eligible_user,
             ineligible_user,
             training_type,
+            instructor,
             training_session,
         ]
     )
