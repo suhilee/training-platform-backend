@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 import uuid
 import logging
@@ -17,6 +20,13 @@ from app.instructors.router import router as instructors_router
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="7.77 Training Platform API")
+
+UPLOADS_DIRECTORY = Path(__file__).resolve().parent.parent / "uploads"
+app.mount(
+    "/uploads",
+    StaticFiles(directory=UPLOADS_DIRECTORY, check_dir=False),
+    name="uploads",
+)
 
 
 app.add_middleware(

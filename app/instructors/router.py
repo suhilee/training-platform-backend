@@ -168,3 +168,50 @@ def delete_instructor_record(
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{instructor_id}/photo",
+    response_model=InstructorListItemResponse,
+)
+async def upload_instructor_photo_record(
+    instructor_id: UUID,
+    file: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_role(UserRole.SESSION_MANAGER)
+    ),
+) -> InstructorListItemResponse:
+    if file is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A photo file is required.",
+        )
+
+    content = await file.read(MAX_INSTRUCTOR_PHOTO_SIZE + 1)
+
+    try:
+        return upload_instructor_photo(
+            db=db,
+            instructor_id=instructor_id,
+            content=content,
+            content_type=file.content_type,
+        )
+    except InstructorNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instructor not found.",
+        )
+    except InvalidInstructorPhotoTypeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Unsupported image type. Allowed types are "
+                "image/jpeg, image/png, and image/webp."
+            ),
+        )
+    except InstructorPhotoTooLargeError:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="The uploaded photo exceeds the 5 MB limit.",
+        )

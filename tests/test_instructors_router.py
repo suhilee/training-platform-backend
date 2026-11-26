@@ -507,3 +507,195 @@ def test_missing_instructor_returns_404(db_session) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Instructor not found."
+
+
+def test_manager_can_upload_instructor_photo(
+    db_session,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    instructor = Instructor(
+        first_name="Photo",
+        last_name="Instructor",
+    )
+
+    db_session.add(instructor)
+    db_session.commit()
+
+    monkeypatch.setattr(
+        "app.instructors.service.INSTRUCTOR_UPLOAD_DIR",
+        tmp_path,
+    )
+
+    override_manager_dependencies(db_session)
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/instructors/{instructor.id}/photo",
+            files={
+                "file": (
+                    "ignored-name.jpg",
+                    b"fake-jpeg-content",
+                    "image/jpeg",
+                ),
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["photo_url"].startswith("/uploads/instructors/")
+    assert body["photo_url"].endswith(".jpg")
+
+    saved_file = tmp_path / Path(body["photo_url"]).name
+    assert saved_file.exists()
+    assert saved_file.read_bytes() == b"fake-jpeg-content"
+
+
+def test_upload_rejects_unsupported_mime_type(
+    db_session,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    instructor = Instructor(
+        first_name="Bad",
+        last_name="Photo",
+    )
+
+    db_session.add(instructor)
+    db_session.commit()
+
+    monkeypatch.setattr(
+        "app.instructors.service.INSTRUCTOR_UPLOAD_DIR",
+        tmp_path,
+    )
+
+    override_manager_dependencies(db_session)
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/instructors/{instructor.id}/photo",
+            files={
+                "file": (
+                    "photo.gif",
+                    b"fake-gif-content",
+                    "image/gif",
+                ),
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Unsupported image type. Allowed types are "
+        "image/jpeg, image/png, and image/webp."
+    )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_upload_rejects_photo_larger_than_five_megabytes(
+    db_session,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    instructor = Instructor(
+        first_name="Large",
+        last_name="Photo",
+    )
+
+    db_session.add(instructor)
+    db_session.commit()
+
+    monkeypatch.setattr(
+        "app.instructors.service.INSTRUCTOR_UPLOAD_DIR",
+        tmp_path,
+    )
+
+    override_manager_dependencies(db_session)
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/instructors/{instructor.id}/photo",
+            files={
+                "file": (
+                    "large.jpg",
+                    b"x" * (5 * 1024 * 1024 + 1),
+                    "image/jpeg",
+                ),
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == (
+        "The uploaded photo exceeds the 5 MB limit."
+    )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_upload_requires_file(db_session) -> None:
+    instructor = Instructor(
+        first_name="Missing",
+        last_name="File",
+    )
+
+    db_session.add(instructor)
+    db_session.commit()
+
+    override_manager_dependencies(db_session)
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/instructors/{instructor.id}/photo",
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "A photo file is required."
+
+
+def test_upload_returns_404_for_missing_instructor(
+    db_session,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.instructors.service.INSTRUCTOR_UPLOAD_DIR",
+        tmp_path,
+    )
+
+    override_manager_dependencies(db_session)
+
+    client = TestClient(app)
+
+    try:
+        response = client.post(
+            f"/instructors/{uuid4()}/photo",
+            files={
+                "file": (
+                    "photo.jpg",
+                    b"fake-jpeg-content",
+                    "image/jpeg",
+                ),
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Instructor not found."
+    assert list(tmp_path.iterdir()) == []

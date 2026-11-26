@@ -5,6 +5,7 @@ description = "This project will serve as the backend for the platform 777 detai
 requires-python = ">=3.12"
 dependencies = [
   "fastapi",
+  "python-multipart",
   "uvicorn[standard]",
   "sqlalchemy",
   "alembic",
