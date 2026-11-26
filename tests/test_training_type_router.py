@@ -24,6 +24,7 @@ def test_list_training_types_returns_dropdown_items(
         id=uuid4(),
         training_code="AI-001",
         name="Introduction to AI",
+        description="A beginner-friendly AI training.",
     )
 
     service_mock = Mock(
@@ -51,6 +52,7 @@ def test_list_training_types_returns_dropdown_items(
             "id": str(training_type.id),
             "training_code": "AI-001",
             "name": "Introduction to AI",
+            "description": "A beginner-friendly AI training.",
         }
     ]
 

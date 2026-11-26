@@ -31,6 +31,7 @@ def get_training_types(
             id=training_type.id,
             training_code=training_type.training_code,
             name=training_type.name,
+            description=training_type.description,
         )
         for training_type in training_types
     ]
