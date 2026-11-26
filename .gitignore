@@ -32,5 +32,8 @@ vscode.deb
 # Logs
 logs/
 
+# Runtime uploads
+uploads/
+
 # Load stats
 *.csv
