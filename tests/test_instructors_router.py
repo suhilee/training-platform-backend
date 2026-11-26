@@ -509,6 +509,124 @@ def test_missing_instructor_returns_404(db_session) -> None:
     assert response.json()["detail"] == "Instructor not found."
 
 
+def test_public_endpoint_returns_only_featured_instructors_with_photo(
+    db_session,
+) -> None:
+    db_session.query(Instructor).update(
+        {Instructor.is_featured: False},
+        synchronize_session=False,
+    )
+    db_session.commit()
+
+    featured_with_photo = Instructor(
+        first_name="Public",
+        last_name="Featured",
+        bio="Public bio",
+        photo_url="/uploads/instructors/public.jpg",
+        is_featured=True,
+    )
+
+    featured_without_photo = Instructor(
+        first_name="No",
+        last_name="Photo",
+        is_featured=True,
+    )
+
+    unfeatured_with_photo = Instructor(
+        first_name="Hidden",
+        last_name="Instructor",
+        photo_url="/uploads/instructors/hidden.jpg",
+        is_featured=False,
+    )
+
+    db_session.add_all(
+        [
+            featured_with_photo,
+            featured_without_photo,
+            unfeatured_with_photo,
+        ]
+    )
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    client = TestClient(app)
+
+    try:
+        response = client.get("/public/instructors")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": str(featured_with_photo.id),
+            "first_name": "Public",
+            "last_name": "Featured",
+            "bio": "Public bio",
+            "photo_url": "/uploads/instructors/public.jpg",
+        },
+    ]
+
+    db_session.delete(featured_with_photo)
+    db_session.delete(featured_without_photo)
+    db_session.delete(unfeatured_with_photo)
+    db_session.commit()
+
+
+def test_public_endpoint_does_not_expose_instructor_contacts(
+    db_session,
+) -> None:
+    db_session.query(Instructor).update(
+        {Instructor.is_featured: False},
+        synchronize_session=False,
+    )
+    db_session.commit()
+
+    instructor = Instructor(
+        first_name="Contact",
+        last_name="Instructor",
+        email=f"public-contact-{uuid4().hex}@example.com",
+        phone="0555999999",
+        photo_url="/uploads/instructors/contact.jpg",
+        is_featured=True,
+    )
+
+    db_session.add(instructor)
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    client = TestClient(app)
+
+    try:
+        response = client.get("/public/instructors")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+
+    for item in response.json():
+        assert set(item) == {
+            "id",
+            "first_name",
+            "last_name",
+            "bio",
+            "photo_url",
+        }
+        assert "email" not in item
+        assert "phone" not in item
+
+    db_session.delete(instructor)
+    db_session.commit()
+
+
 def test_manager_can_upload_instructor_photo(
     db_session,
     tmp_path,

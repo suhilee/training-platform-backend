@@ -215,3 +215,13 @@ async def upload_instructor_photo_record(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="The uploaded photo exceeds the 5 MB limit.",
         )
+
+
+@public_router.get(
+    "/instructors",
+    response_model=list[PublicInstructorListItemResponse],
+)
+def list_public_homepage_instructors(
+    db: Session = Depends(get_db),
+) -> list[PublicInstructorListItemResponse]:
+    return list_public_instructors(db=db)
